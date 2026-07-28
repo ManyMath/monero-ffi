@@ -1,8 +1,8 @@
 use crate::ffi_web::SendToDart;
+// The four *Request types this actor listens for are never named here: each
+// get_<signal>_receiver() returns an already-typed receiver, so they come in inferred.
 use crate::signals::{
-    DeriveEncryptionKeyRequest, EncryptionKeyDerivedResponse, LoadWalletDataRequest,
-    SaveWalletDataRequest, SaveWithDerivedKeyRequest, WalletDataLoadedResponse,
-    WalletDataSavedResponse,
+    EncryptionKeyDerivedResponse, WalletDataLoadedResponse, WalletDataSavedResponse,
 };
 use async_trait::async_trait;
 use messages::prelude::{Actor, Address, Context, Notifiable};
