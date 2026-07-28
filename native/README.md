@@ -3,7 +3,7 @@
 - **`monero_wasm`** — the wallet crate the app runs. It builds to wasm32 for the browser
   (loaded by the Web Worker) and to a cdylib/staticlib for native, where `ffi_native.rs`
   exposes a C surface. Rinf is gone; the Dart side talks to it through hand-written
-  bindings in `flutter/web/lib/src/ffi/`.
+  bindings in `lib/src/ffi/`.
 - **`codegen`** — generates the signal surface. It is not a dependency of anything; it is
   run by hand and by `scripts/test-all.sh`.
 
@@ -14,19 +14,19 @@ message crossing the Dart/Rust boundary, and `codegen` derives three files from 
 
 | generated file | what it is |
 |---|---|
-| `flutter/web/lib/src/ffi/signal_types.dart` | the Dart classes, with `sendSignalToRust()` and `stream` |
+| `lib/src/ffi/signal_types.dart` | the Dart classes, with `sendSignalToRust()` and `stream` |
 | `monero_wasm/src/ffi_web.rs` | the `dart_signal!` channels and the wasm-bindgen exports |
 | `monero_wasm/src/signal_ids.rs` | numeric IDs and the native FFI routing |
 
 ```sh
-cd flutter/web/native/codegen
+cd native/codegen
 cargo run              # regenerate
 cargo run -- --check   # fail if the committed copies are stale
 cargo test             # the generator's own tests
 ```
 
-`cargo test` is a separate invocation because this crate is not in `rust/`'s workspace, so
-`cargo test --workspace` there never reaches it. `scripts/test-all.sh` runs both.
+`cargo test` is a separate invocation because this crate has its own `[workspace]`, so the
+root workspace's `cargo test --workspace` never reaches it. `scripts/test-all.sh` runs both.
 
 ### What the generator refuses
 

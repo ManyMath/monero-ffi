@@ -24,7 +24,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.45.0", features = ["rt", "macros", "time", "sync"] }
 async-trait = "0.1.87"
 messages = "0.3.1"
-monero-rust = { path = "../../../../rust/monero-rust" }
+monero-rust = { path = "../../vendor/monero-rust/rust/monero-rust" }
 
 # Encryption dependencies
 chacha20poly1305 = "0.10"
