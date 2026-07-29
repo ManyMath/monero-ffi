@@ -1644,14 +1644,15 @@ impl Handler<UpdateOutputKeyImages> for WalletActor {
         // marking spent, confirming a pending spend — landing on the wrong output. And
         // the verification has to happen here because this is where the pairing is
         // decided: each ring signature is checked against the public key of the output
-        // it actually lands on, as monero does.
+        // it actually lands on — at `offset + n`, not `n` — as monero does.
         let result = self
             .core_state
-            .assign_verified_key_images_in_export_order(&msg.signed);
+            .assign_verified_key_images_in_export_order(&msg.import);
         match &result {
             Ok(count) => log::info!(
-                "[UpdateOutputKeyImages] assigned {} key images to {} outputs",
+                "[UpdateOutputKeyImages] assigned {} key images from output {} to {} outputs",
                 count,
+                msg.import.offset,
                 self.core_state.outputs().len()
             ),
             Err(e) => log::warn!("[UpdateOutputKeyImages] refused the import: {}", e),

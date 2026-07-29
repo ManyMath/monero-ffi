@@ -1778,12 +1778,14 @@ impl Notifiable<ImportKeyImages> for TxBuilderActor {
             // its key image belongs to the output it will be paired with, and the pairing
             // is positional. Dropping the proofs here leaves nothing downstream able to
             // tell a genuine export from one whose entries were reordered or invented.
-            let signed = match monero_rust::key_image_signing::import_signed_key_images_from_seed(
+            // The same struct carries the file's `offset`, which says which output entry 0
+            // is about — a partial export starts part-way through the transfer list.
+            let import = match monero_rust::key_image_signing::import_signed_key_images_from_seed(
                 &msg.seed,
                 &msg.passphrase,
                 &data,
             ) {
-                Ok(kis) => kis,
+                Ok(import) => import,
                 Err(e) => {
                     KeyImagesImportedResponse {
                         success: false,
@@ -1812,7 +1814,7 @@ impl Notifiable<ImportKeyImages> for TxBuilderActor {
             // zero balance change rather than as an error.
             let assigned = wallet_addr
                 .send(UpdateOutputKeyImages {
-                    signed: signed.clone(),
+                    import: import.clone(),
                 })
                 .await;
 
@@ -1853,10 +1855,7 @@ impl Notifiable<ImportKeyImages> for TxBuilderActor {
             };
 
             let node_url = msg.node_url;
-            let key_images: Vec<String> = signed
-                .iter()
-                .map(|ski| hex::encode(ski.key_image))
-                .collect();
+            let key_images = import.key_images_hex();
             let response_key_images = key_images.clone();
             let non_empty_kis: Vec<String> =
                 key_images.into_iter().filter(|ki| !ki.is_empty()).collect();

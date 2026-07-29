@@ -267,10 +267,13 @@ pub struct ImportKeyImages {
 /// Key images are matched to outputs sorted by (block_height, output_index).
 #[derive(Debug, Clone)]
 pub struct UpdateOutputKeyImages {
-    /// Each key image with the ring signature proving it belongs to the output it is
-    /// paired with. The proof travels with the key image because the pairing is
-    /// positional and only the signature can confirm it.
-    pub signed: Vec<monero_rust::SignedKeyImage>,
+    /// The entries, the ring signature proving each belongs to the output it is paired
+    /// with, and the export's offset. All three travel together because the pairing is
+    /// positional: the offset says which output entry 0 is about, and only the signature
+    /// can confirm the answer. A partial export — monero-wallet-cli's `export_key_images`
+    /// without `all` — carries a nonzero offset, and applying it from 0 mispairs
+    /// everything.
+    pub import: monero_rust::SignedKeyImageImport,
 }
 
 #[derive(Debug, Clone)]
