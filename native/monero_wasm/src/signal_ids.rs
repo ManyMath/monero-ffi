@@ -36,18 +36,19 @@ pub const CONVERT_BIP39_TO_LEGACY_REQUEST: u32 = 29;
 pub const FREEZE_OUTPUT_REQUEST: u32 = 30;
 pub const THAW_OUTPUT_REQUEST: u32 = 31;
 pub const CREATE_UNSIGNED_TRANSACTION_REQUEST: u32 = 32;
-pub const SIGN_UNSIGNED_TRANSACTION_REQUEST: u32 = 33;
-pub const EXTRACT_SIGNED_TXSET_REQUEST: u32 = 34;
-pub const INSPECT_UNSIGNED_TXSET_REQUEST: u32 = 35;
-pub const BUILD_SIGNED_TXSET_REQUEST: u32 = 36;
-pub const EXPORT_KEY_IMAGES_REQUEST: u32 = 37;
-pub const IMPORT_KEY_IMAGES_REQUEST: u32 = 38;
-pub const IMPORT_KEYS_FILE_REQUEST: u32 = 39;
-pub const EXPORT_KEYS_FILE_REQUEST: u32 = 40;
-pub const START_UR_ENCODER_REQUEST: u32 = 41;
-pub const STOP_UR_ENCODER_REQUEST: u32 = 42;
-pub const UR_DECODE_FRAME_REQUEST: u32 = 43;
-pub const RESET_UR_DECODER_REQUEST: u32 = 44;
+pub const PREVIEW_UNSIGNED_TRANSACTION_REQUEST: u32 = 33;
+pub const SIGN_UNSIGNED_TRANSACTION_REQUEST: u32 = 34;
+pub const EXTRACT_SIGNED_TXSET_REQUEST: u32 = 35;
+pub const INSPECT_UNSIGNED_TXSET_REQUEST: u32 = 36;
+pub const BUILD_SIGNED_TXSET_REQUEST: u32 = 37;
+pub const EXPORT_KEY_IMAGES_REQUEST: u32 = 38;
+pub const IMPORT_KEY_IMAGES_REQUEST: u32 = 39;
+pub const IMPORT_KEYS_FILE_REQUEST: u32 = 40;
+pub const EXPORT_KEYS_FILE_REQUEST: u32 = 41;
+pub const START_UR_ENCODER_REQUEST: u32 = 42;
+pub const STOP_UR_ENCODER_REQUEST: u32 = 43;
+pub const UR_DECODE_FRAME_REQUEST: u32 = 44;
+pub const RESET_UR_DECODER_REQUEST: u32 = 45;
 
 // -- RustSignal IDs (Rust -> Dart) --
 pub const MONERO_TEST_RESPONSE: u32 = 101;
@@ -79,17 +80,18 @@ pub const BIP39_LEGACY_SEED_RESPONSE: u32 = 126;
 pub const FREEZE_THAW_RESPONSE: u32 = 127;
 pub const TRANSACTION_STATUS_UPDATE: u32 = 128;
 pub const UNSIGNED_TRANSACTION_CREATED_RESPONSE: u32 = 129;
-pub const TRANSACTION_SIGNED_OFFLINE_RESPONSE: u32 = 130;
-pub const SIGNED_TXSET_EXTRACTED_RESPONSE: u32 = 131;
-pub const UNSIGNED_TXSET_INSPECTED_RESPONSE: u32 = 132;
-pub const SIGNED_TXSET_BUILT_RESPONSE: u32 = 133;
-pub const KEY_IMAGES_EXPORTED_RESPONSE: u32 = 134;
-pub const KEY_IMAGES_IMPORTED_RESPONSE: u32 = 135;
-pub const IMPORT_KEYS_FILE_RESPONSE: u32 = 136;
-pub const EXPORT_KEYS_FILE_RESPONSE: u32 = 137;
-pub const QR_FRAME_RESPONSE: u32 = 138;
-pub const UR_DECODE_PROGRESS_RESPONSE: u32 = 139;
-pub const UR_DECODE_COMPLETE_RESPONSE: u32 = 140;
+pub const UNSIGNED_TRANSACTION_PREVIEWED_RESPONSE: u32 = 130;
+pub const TRANSACTION_SIGNED_OFFLINE_RESPONSE: u32 = 131;
+pub const SIGNED_TXSET_EXTRACTED_RESPONSE: u32 = 132;
+pub const UNSIGNED_TXSET_INSPECTED_RESPONSE: u32 = 133;
+pub const SIGNED_TXSET_BUILT_RESPONSE: u32 = 134;
+pub const KEY_IMAGES_EXPORTED_RESPONSE: u32 = 135;
+pub const KEY_IMAGES_IMPORTED_RESPONSE: u32 = 136;
+pub const IMPORT_KEYS_FILE_RESPONSE: u32 = 137;
+pub const EXPORT_KEYS_FILE_RESPONSE: u32 = 138;
+pub const QR_FRAME_RESPONSE: u32 = 139;
+pub const UR_DECODE_PROGRESS_RESPONSE: u32 = 140;
+pub const UR_DECODE_COMPLETE_RESPONSE: u32 = 141;
 
 /// Maps a RustSignal type name to its numeric ID.
 #[cfg(not(target_arch = "wasm32"))]
@@ -124,6 +126,7 @@ pub(crate) fn rust_signal_id_for_name(name: &str) -> u32 {
         "FreezeThawResponse" => FREEZE_THAW_RESPONSE,
         "TransactionStatusUpdate" => TRANSACTION_STATUS_UPDATE,
         "UnsignedTransactionCreatedResponse" => UNSIGNED_TRANSACTION_CREATED_RESPONSE,
+        "UnsignedTransactionPreviewedResponse" => UNSIGNED_TRANSACTION_PREVIEWED_RESPONSE,
         "TransactionSignedOfflineResponse" => TRANSACTION_SIGNED_OFFLINE_RESPONSE,
         "SignedTxSetExtractedResponse" => SIGNED_TXSET_EXTRACTED_RESPONSE,
         "UnsignedTxSetInspectedResponse" => UNSIGNED_TXSET_INSPECTED_RESPONSE,
@@ -203,6 +206,9 @@ pub(crate) fn route_dart_signal(signal_id: u32, data: Vec<u8>) {
         THAW_OUTPUT_REQUEST => crate::ffi_web::send_thaw_output_request(json_str),
         CREATE_UNSIGNED_TRANSACTION_REQUEST => {
             crate::ffi_web::send_create_unsigned_transaction_request(json_str)
+        }
+        PREVIEW_UNSIGNED_TRANSACTION_REQUEST => {
+            crate::ffi_web::send_preview_unsigned_transaction_request(json_str)
         }
         SIGN_UNSIGNED_TRANSACTION_REQUEST => {
             crate::ffi_web::send_sign_unsigned_transaction_request(json_str)

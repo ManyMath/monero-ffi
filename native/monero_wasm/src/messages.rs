@@ -217,6 +217,15 @@ pub struct SignUnsignedTx {
 }
 
 #[derive(Debug, Clone)]
+pub struct PreviewUnsignedTx {
+    pub seed: String,
+    pub unsigned_tx_hex: String,
+    pub network: String,
+    pub spend_secret_key_hex: Option<String>,
+    pub view_secret_key_hex: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct InspectUnsignedTxSet {
     pub data_hex: String,
     pub view_key_hex: String,

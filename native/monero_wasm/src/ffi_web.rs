@@ -77,7 +77,7 @@ macro_rules! dart_signal {
     };
 }
 
-// All 44 DartSignal types
+// All 45 DartSignal types
 dart_signal!(MoneroTestRequest, monero_test_request);
 dart_signal!(CreateWalletRequest, create_wallet_request);
 dart_signal!(StartSyncRequest, start_sync_request);
@@ -115,6 +115,10 @@ dart_signal!(ThawOutputRequest, thaw_output_request);
 dart_signal!(
     CreateUnsignedTransactionRequest,
     create_unsigned_transaction_request
+);
+dart_signal!(
+    PreviewUnsignedTransactionRequest,
+    preview_unsigned_transaction_request
 );
 dart_signal!(
     SignUnsignedTransactionRequest,
@@ -234,6 +238,7 @@ impl_send_to_dart! {
     FreezeThawResponse => "FreezeThawResponse",
     TransactionStatusUpdate => "TransactionStatusUpdate",
     UnsignedTransactionCreatedResponse => "UnsignedTransactionCreatedResponse",
+    UnsignedTransactionPreviewedResponse => "UnsignedTransactionPreviewedResponse",
     TransactionSignedOfflineResponse => "TransactionSignedOfflineResponse",
     SignedTxSetExtractedResponse => "SignedTxSetExtractedResponse",
     UnsignedTxSetInspectedResponse => "UnsignedTxSetInspectedResponse",

@@ -306,6 +306,35 @@ class SignedOfflineTransaction {
       );
 }
 
+class TransactionDestinationPreview {
+  final String address;
+  final int amount;
+  final bool isChange;
+  final bool isOurs;
+
+  const TransactionDestinationPreview({
+    required this.address,
+    required this.amount,
+    required this.isChange,
+    required this.isOurs,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'address': address,
+    'amount': amount,
+    'is_change': isChange,
+    'is_ours': isOurs,
+  };
+
+  factory TransactionDestinationPreview.fromJson(Map<String, dynamic> json) =>
+      TransactionDestinationPreview(
+        address: json['address'] as String,
+        amount: json['amount'] as int,
+        isChange: json['is_change'] as bool,
+        isOurs: json['is_ours'] as bool,
+      );
+}
+
 class ExtractedSignedTransaction {
   final String txId;
   final String txBlob;
@@ -667,7 +696,7 @@ void _send(String fnName, Map<String, dynamic> data) {
 }
 
 // ---------------------------------------------------------------------------
-// DartSignal types (Dart -> Rust, 44 total)
+// DartSignal types (Dart -> Rust, 45 total)
 // Each has sendSignalToRust().
 // ---------------------------------------------------------------------------
 
@@ -1230,6 +1259,37 @@ class CreateUnsignedTransactionRequest {
   });
 }
 
+class PreviewUnsignedTransactionRequest {
+  final String seed;
+  final String unsignedTxHex;
+  final String network;
+  final String passphrase;
+  final int bip39AccountIndex;
+  final String? spendSecretKeyHex;
+  final String? viewSecretKeyHex;
+  const PreviewUnsignedTransactionRequest({
+    required this.seed,
+    required this.unsignedTxHex,
+    required this.network,
+    this.passphrase = '',
+    this.bip39AccountIndex = 0,
+    this.spendSecretKeyHex,
+    this.viewSecretKeyHex,
+  });
+
+  void sendSignalToRust() =>
+      _send('send_preview_unsigned_transaction_request', {
+        'seed': seed,
+        'unsigned_tx_hex': unsignedTxHex,
+        'network': network,
+        'passphrase': passphrase,
+        'bip39_account_index': bip39AccountIndex,
+        if (spendSecretKeyHex != null)
+          'spend_secret_key_hex': spendSecretKeyHex,
+        if (viewSecretKeyHex != null) 'view_secret_key_hex': viewSecretKeyHex,
+      });
+}
+
 class SignUnsignedTransactionRequest {
   final String seed;
   final String unsignedTxHex;
@@ -1425,7 +1485,7 @@ class ResetUrDecoderRequest {
 }
 
 // ---------------------------------------------------------------------------
-// RustSignal types (Rust -> Dart, 40 total)
+// RustSignal types (Rust -> Dart, 41 total)
 // Each has fromJson() and a static stream getter.
 // ---------------------------------------------------------------------------
 
@@ -2368,6 +2428,44 @@ class UnsignedTransactionCreatedResponse {
   static Stream<UnsignedTransactionCreatedResponse> get stream => signalSender
       .onRawSignal('UnsignedTransactionCreatedResponse')
       .map(UnsignedTransactionCreatedResponse.fromJson);
+}
+
+class UnsignedTransactionPreviewedResponse {
+  final bool success;
+  final String? error;
+  final int? errorCode;
+  final String? errorHint;
+  final bool? errorTransient;
+  final List<TransactionDestinationPreview> destinations;
+
+  const UnsignedTransactionPreviewedResponse({
+    required this.success,
+    this.error,
+    this.errorCode,
+    this.errorHint,
+    this.errorTransient,
+    required this.destinations,
+  });
+
+  factory UnsignedTransactionPreviewedResponse.fromJson(
+    Map<String, dynamic> json,
+  ) => UnsignedTransactionPreviewedResponse(
+    success: json['success'] as bool,
+    error: json['error'] as String?,
+    errorCode: json['error_code'] as int?,
+    errorHint: json['error_hint'] as String?,
+    errorTransient: json['error_transient'] as bool?,
+    destinations: (json['destinations'] as List)
+        .map(
+          (e) =>
+              TransactionDestinationPreview.fromJson(e as Map<String, dynamic>),
+        )
+        .toList(),
+  );
+
+  static Stream<UnsignedTransactionPreviewedResponse> get stream => signalSender
+      .onRawSignal('UnsignedTransactionPreviewedResponse')
+      .map(UnsignedTransactionPreviewedResponse.fromJson);
 }
 
 class TransactionSignedOfflineResponse {

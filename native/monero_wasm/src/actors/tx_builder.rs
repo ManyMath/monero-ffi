@@ -51,6 +51,7 @@ impl TxBuilderActor {
         _owned_tasks.spawn(Self::listen_to_proof_requests(self_addr.clone()));
         _owned_tasks.spawn(Self::listen_to_unsigned_tx_requests(self_addr.clone()));
         _owned_tasks.spawn(Self::listen_to_sign_unsigned_requests(self_addr.clone()));
+        _owned_tasks.spawn(Self::listen_to_preview_unsigned_requests(self_addr.clone()));
         _owned_tasks.spawn(Self::listen_to_inspect_unsigned_txsets(self_addr.clone()));
         _owned_tasks.spawn(Self::listen_to_extract_signed_txsets(self_addr.clone()));
         _owned_tasks.spawn(Self::listen_to_build_signed_txsets(self_addr.clone()));
@@ -285,6 +286,21 @@ impl TxBuilderActor {
             let _ = self_addr
                 .notify(SignUnsignedTx {
                     seed: resolved_seed,
+                    unsigned_tx_hex: request.unsigned_tx_hex,
+                    network: request.network,
+                    spend_secret_key_hex: request.spend_secret_key_hex,
+                    view_secret_key_hex: request.view_secret_key_hex,
+                })
+                .await;
+        }
+    }
+
+    async fn listen_to_preview_unsigned_requests(mut self_addr: Address<Self>) {
+        let mut receiver = crate::ffi_web::get_preview_unsigned_transaction_request_receiver();
+        while let Some(request) = receiver.recv().await {
+            let _ = self_addr
+                .notify(PreviewUnsignedTx {
+                    seed: request.seed,
                     unsigned_tx_hex: request.unsigned_tx_hex,
                     network: request.network,
                     spend_secret_key_hex: request.spend_secret_key_hex,
@@ -1466,6 +1482,68 @@ fn signed_txset_built_error_response(msg: String) -> SignedTxSetBuiltResponse {
         error_hint: err.hint,
         error_transient: Some(err.transient),
         signed_txset_hex: None,
+    }
+}
+
+#[async_trait]
+impl Notifiable<PreviewUnsignedTx> for TxBuilderActor {
+    async fn notify(&mut self, msg: PreviewUnsignedTx, _ctx: &Context<Self>) {
+        spawn_local(async move {
+            let spend_hex = msg.spend_secret_key_hex.filter(|key| !key.is_empty());
+            let view_hex = msg.view_secret_key_hex.filter(|key| !key.is_empty());
+            let result = match (spend_hex, view_hex) {
+                (Some(spend_hex), Some(view_hex)) => {
+                    decode_private_key_hex(&spend_hex, "spend secret key").and_then(|spend_key| {
+                        decode_private_key_hex(&view_hex, "view secret key").and_then(|view_key| {
+                            monero_rust::tx_builder::preview_unsigned_transaction(
+                                spend_key,
+                                view_key,
+                                &msg.unsigned_tx_hex,
+                                &msg.network,
+                            )
+                        })
+                    })
+                }
+                (None, None) => monero_rust::tx_builder::preview_unsigned_transaction_from_seed(
+                    &msg.seed,
+                    &msg.unsigned_tx_hex,
+                    &msg.network,
+                ),
+                _ => Err(
+                    "Both spend and view secret keys are required for key-based preview"
+                        .to_string(),
+                ),
+            };
+
+            match result {
+                Ok(destinations) => UnsignedTransactionPreviewedResponse {
+                    success: true,
+                    error: None,
+                    error_code: None,
+                    error_hint: None,
+                    error_transient: None,
+                    destinations: destinations
+                        .into_iter()
+                        .map(|d| TransactionDestinationPreview {
+                            address: d.address,
+                            amount: d.amount,
+                            is_change: d.is_change,
+                            is_ours: d.is_ours,
+                        })
+                        .collect(),
+                }
+                .send_signal_to_dart(),
+                Err(error) => UnsignedTransactionPreviewedResponse {
+                    success: false,
+                    error: Some(error),
+                    error_code: None,
+                    error_hint: None,
+                    error_transient: None,
+                    destinations: vec![],
+                }
+                .send_signal_to_dart(),
+            }
+        });
     }
 }
 

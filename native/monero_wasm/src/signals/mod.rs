@@ -706,6 +706,26 @@ pub struct CreateUnsignedTransactionRequest {
     pub max_fee_per_weight: Option<u64>,
 }
 
+/// Ask what an unsigned transaction would pay, without signing it.
+///
+/// The offline signer is the trusted half of a cold setup; the unsigned transaction is
+/// authored by the online, view-only half, which it does not trust. Monero answers that
+/// with a confirmation prompt listing every destination, and this is the data behind ours.
+#[derive(Deserialize)]
+pub struct PreviewUnsignedTransactionRequest {
+    pub seed: String,
+    pub unsigned_tx_hex: String,
+    pub network: String,
+    #[serde(default)]
+    pub passphrase: String,
+    #[serde(default)]
+    pub bip39_account_index: u32,
+    #[serde(default)]
+    pub spend_secret_key_hex: Option<String>,
+    #[serde(default)]
+    pub view_secret_key_hex: Option<String>,
+}
+
 #[derive(Deserialize)]
 pub struct SignUnsignedTransactionRequest {
     pub seed: String,
@@ -786,6 +806,28 @@ pub struct SignedOfflineTransaction {
     pub tx_key_additional: Vec<String>,
     pub spent_key_images: Vec<String>,
     pub change_outputs: Vec<ChangeOutput>,
+}
+
+/// One destination of an unsigned transaction, for the confirmation screen.
+#[derive(Serialize, Deserialize)]
+pub struct TransactionDestinationPreview {
+    pub address: String,
+    pub amount: u64,
+    /// The transaction declares this output as change.
+    pub is_change: bool,
+    /// This wallet can spend from `address`. Change that is not ours is the redirection
+    /// attack the signer refuses outright — the screen must show it, not hide it.
+    pub is_ours: bool,
+}
+
+#[derive(Serialize)]
+pub struct UnsignedTransactionPreviewedResponse {
+    pub success: bool,
+    pub error: Option<String>,
+    pub error_code: Option<u32>,
+    pub error_hint: Option<String>,
+    pub error_transient: Option<bool>,
+    pub destinations: Vec<TransactionDestinationPreview>,
 }
 
 #[derive(Serialize)]
