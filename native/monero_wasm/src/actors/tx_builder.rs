@@ -1774,7 +1774,11 @@ impl Notifiable<ImportKeyImages> for TxBuilderActor {
                 }
             };
 
-            let key_images = match monero_rust::key_image_signing::import_key_images_from_seed(
+            // The signed form, not the bare hex list: each ring signature is what proves
+            // its key image belongs to the output it will be paired with, and the pairing
+            // is positional. Dropping the proofs here leaves nothing downstream able to
+            // tell a genuine export from one whose entries were reordered or invented.
+            let signed = match monero_rust::key_image_signing::import_signed_key_images_from_seed(
                 &msg.seed,
                 &msg.passphrase,
                 &data,
@@ -1797,19 +1801,62 @@ impl Notifiable<ImportKeyImages> for TxBuilderActor {
                 }
             };
 
-            let imported_count = key_images.len() as u64;
-
             // Assign key images positionally to wallet outputs so the view-only
-            // wallet can later detect spends during blockchain scanning. The
-            // wallet actor sorts outputs by (block_height, output_index) to match
-            // Monero's key image export ordering.
-            let _ = wallet_addr
-                .notify(UpdateOutputKeyImages {
-                    key_images: key_images.clone(),
+            // wallet can later detect spends during blockchain scanning. The wallet
+            // actor sorts outputs into Monero's export order, verifies each signature
+            // against the output it lands on, and reindexes, in one step. It can refuse
+            // the list — a key image that does not belong to its output, a repeated one,
+            // or more than we hold outputs for — and a refusal has to reach the user:
+            // reporting a successful import of key images that were never applied leaves
+            // them believing the wallet tracks spends when it does not, which reads as a
+            // zero balance change rather than as an error.
+            let assigned = wallet_addr
+                .send(UpdateOutputKeyImages {
+                    signed: signed.clone(),
                 })
                 .await;
 
+            let imported_count = match assigned {
+                Ok(Ok(count)) => count as u64,
+                Ok(Err(e)) => {
+                    KeyImagesImportedResponse {
+                        success: false,
+                        error: Some(format!("Key image import refused: {}", e)),
+                        error_code: None,
+                        error_hint: Some(
+                            "Rescan the wallet, then import the key image file again".to_string(),
+                        ),
+                        error_transient: Some(false),
+                        imported_count: 0,
+                        spent_count: 0,
+                        key_images: vec![],
+                        spent_key_images: vec![],
+                    }
+                    .send_signal_to_dart();
+                    return;
+                }
+                Err(e) => {
+                    KeyImagesImportedResponse {
+                        success: false,
+                        error: Some(format!("Wallet did not apply key images: {:?}", e)),
+                        error_code: None,
+                        error_hint: None,
+                        error_transient: Some(true),
+                        imported_count: 0,
+                        spent_count: 0,
+                        key_images: vec![],
+                        spent_key_images: vec![],
+                    }
+                    .send_signal_to_dart();
+                    return;
+                }
+            };
+
             let node_url = msg.node_url;
+            let key_images: Vec<String> = signed
+                .iter()
+                .map(|ski| hex::encode(ski.key_image))
+                .collect();
             let response_key_images = key_images.clone();
             let non_empty_kis: Vec<String> =
                 key_images.into_iter().filter(|ki| !ki.is_empty()).collect();

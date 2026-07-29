@@ -267,7 +267,10 @@ pub struct ImportKeyImages {
 /// Key images are matched to outputs sorted by (block_height, output_index).
 #[derive(Debug, Clone)]
 pub struct UpdateOutputKeyImages {
-    pub key_images: Vec<String>,
+    /// Each key image with the ring signature proving it belongs to the output it is
+    /// paired with. The proof travels with the key image because the pairing is
+    /// positional and only the signature can confirm it.
+    pub signed: Vec<monero_rust::SignedKeyImage>,
 }
 
 #[derive(Debug, Clone)]

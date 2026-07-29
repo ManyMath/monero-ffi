@@ -1634,35 +1634,29 @@ impl Notifiable<MarkOutputsSpent> for WalletActor {
 }
 
 #[async_trait]
-impl Notifiable<UpdateOutputKeyImages> for WalletActor {
-    async fn notify(&mut self, msg: UpdateOutputKeyImages, _ctx: &Context<Self>) {
-        let outputs = self.core_state.outputs_mut();
-        // Sort by (block_height, output_index) to match Monero's positional
-        // key image export ordering.
-        outputs.sort_by(|a, b| {
-            a.block_height
-                .cmp(&b.block_height)
-                .then(a.output_index.cmp(&b.output_index))
-        });
-        let ki_count = msg.key_images.len();
-        let out_count = outputs.len();
-        if ki_count != out_count {
-            log::warn!(
-                "[UpdateOutputKeyImages] count mismatch: {} key images vs {} outputs, \
-                 positional assignment may pair key images with wrong outputs",
-                ki_count,
-                out_count
-            );
+impl Handler<UpdateOutputKeyImages> for WalletActor {
+    type Result = Result<usize, String>;
+
+    async fn handle(&mut self, msg: UpdateOutputKeyImages, _ctx: &Context<Self>) -> Self::Result {
+        // Sorting into monero's export order, verifying and assigning are one call.
+        // Sorting the output vector invalidates `WalletState`'s key_image -> index map,
+        // so doing that separately leaves every later lookup by key image — freezing,
+        // marking spent, confirming a pending spend — landing on the wrong output. And
+        // the verification has to happen here because this is where the pairing is
+        // decided: each ring signature is checked against the public key of the output
+        // it actually lands on, as monero does.
+        let result = self
+            .core_state
+            .assign_verified_key_images_in_export_order(&msg.signed);
+        match &result {
+            Ok(count) => log::info!(
+                "[UpdateOutputKeyImages] assigned {} key images to {} outputs",
+                count,
+                self.core_state.outputs().len()
+            ),
+            Err(e) => log::warn!("[UpdateOutputKeyImages] refused the import: {}", e),
         }
-        let count = ki_count.min(out_count);
-        for i in 0..count {
-            outputs[i].key_image = msg.key_images[i].clone();
-        }
-        log::info!(
-            "[UpdateOutputKeyImages] assigned {} key images to {} outputs",
-            count,
-            out_count
-        );
+        result
     }
 }
 
