@@ -108,6 +108,7 @@ impl TxBuilderActor {
                 .notify(BuildTransaction {
                     node_url: request.node_url,
                     seed: resolved_seed,
+                    passphrase: request.passphrase,
                     network: request.network,
                     recipients,
                     selected_outputs: request.selected_outputs,
@@ -151,6 +152,7 @@ impl TxBuilderActor {
                 .notify(SweepAll {
                     node_url: request.node_url,
                     seed: resolved_seed,
+                    passphrase: request.passphrase,
                     network: request.network,
                     destination_address: request.destination_address,
                     selected_outputs: request.selected_outputs,
@@ -286,6 +288,7 @@ impl TxBuilderActor {
             let _ = self_addr
                 .notify(SignUnsignedTx {
                     seed: resolved_seed,
+                    passphrase: request.passphrase,
                     unsigned_tx_hex: request.unsigned_tx_hex,
                     network: request.network,
                     spend_secret_key_hex: request.spend_secret_key_hex,
@@ -298,9 +301,45 @@ impl TxBuilderActor {
     async fn listen_to_preview_unsigned_requests(mut self_addr: Address<Self>) {
         let mut receiver = crate::ffi_web::get_preview_unsigned_transaction_request_receiver();
         while let Some(request) = receiver.recv().await {
+            // Resolve exactly as the signer does. The preview exists to show a user what
+            // they are about to sign, so a preview derived from a different wallet than the
+            // signature is worse than no preview: it would mark the wallet's own change as
+            // somebody else's, or somebody else's as its own.
+            let has_private_keys = request
+                .spend_secret_key_hex
+                .as_deref()
+                .is_some_and(|key| !key.is_empty())
+                || request
+                    .view_secret_key_hex
+                    .as_deref()
+                    .is_some_and(|key| !key.is_empty());
+            let resolved_seed = if has_private_keys {
+                request.seed.clone()
+            } else {
+                match super::wallet::pre_resolve_bip39(
+                    &request.seed,
+                    &request.passphrase,
+                    request.bip39_account_index,
+                ) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        UnsignedTransactionPreviewedResponse {
+                            success: false,
+                            error: Some(e),
+                            error_code: None,
+                            error_hint: None,
+                            error_transient: None,
+                            destinations: vec![],
+                        }
+                        .send_signal_to_dart();
+                        continue;
+                    }
+                }
+            };
             let _ = self_addr
                 .notify(PreviewUnsignedTx {
-                    seed: request.seed,
+                    seed: resolved_seed,
+                    passphrase: request.passphrase,
                     unsigned_tx_hex: request.unsigned_tx_hex,
                     network: request.network,
                     spend_secret_key_hex: request.spend_secret_key_hex,
@@ -437,6 +476,7 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
                     let stored_daemon_height = wallet_height.daemon_height;
                     let node_url = msg.node_url;
                     let seed = msg.seed;
+                    let passphrase = msg.passphrase;
                     let network = msg.network;
                     let recipients = msg.recipients;
                     let selected_outputs = msg.selected_outputs;
@@ -513,6 +553,7 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
                                 &network,
                                 prepared.stored_outputs,
                                 &recipients[0].0,
+                                &passphrase,
                             )
                             .await
                             {
@@ -630,6 +671,7 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
                             &network,
                             prepared.stored_outputs.clone(),
                             &final_recipients,
+                            &passphrase,
                         )
                         .await
                         {
@@ -679,6 +721,7 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
                                     &network,
                                     prepared.stored_outputs,
                                     &final_recipients[0].0,
+                                    &passphrase,
                                 )
                                 .await
                                 {
@@ -756,6 +799,7 @@ impl Notifiable<SweepAll> for TxBuilderActor {
                     let stored_daemon_height = wallet_height.daemon_height;
                     let node_url = msg.node_url;
                     let seed = msg.seed;
+                    let passphrase = msg.passphrase;
                     let network = msg.network;
                     let destination = msg.destination_address;
                     let selected_outputs = msg.selected_outputs;
@@ -793,6 +837,7 @@ impl Notifiable<SweepAll> for TxBuilderActor {
                             &network,
                             prepared.stored_outputs,
                             &destination,
+                            &passphrase,
                         )
                         .await
                         {
@@ -1508,6 +1553,7 @@ impl Notifiable<PreviewUnsignedTx> for TxBuilderActor {
                     &msg.seed,
                     &msg.unsigned_tx_hex,
                     &msg.network,
+                    &msg.passphrase,
                 ),
                 _ => Err(
                     "Both spend and view secret keys are required for key-based preview"
@@ -1551,6 +1597,7 @@ impl Notifiable<PreviewUnsignedTx> for TxBuilderActor {
 impl Notifiable<SignUnsignedTx> for TxBuilderActor {
     async fn notify(&mut self, msg: SignUnsignedTx, _ctx: &Context<Self>) {
         let seed = msg.seed;
+        let passphrase = msg.passphrase;
         let unsigned_tx_hex = msg.unsigned_tx_hex;
         let network = msg.network;
         let spend_secret_key_hex = msg.spend_secret_key_hex;
@@ -1576,6 +1623,7 @@ impl Notifiable<SignUnsignedTx> for TxBuilderActor {
                     &seed,
                     &unsigned_tx_hex,
                     &network,
+                    &passphrase,
                 ),
                 _ => Err(
                     "Both spend and view secret keys are required for key-based signing"

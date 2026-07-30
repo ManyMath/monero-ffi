@@ -18,6 +18,10 @@ pub struct WalletState {
 pub struct BuildTransaction {
     pub node_url: String,
     pub seed: String,
+    /// The seed offset passphrase, which picks a different wallet out of the same mnemonic.
+    /// It travels with the seed everywhere the seed does; dropping it signs as the wrong
+    /// wallet.
+    pub passphrase: String,
     pub network: String,
     pub recipients: Vec<(String, u64)>, // (address, amount) pairs
     pub selected_outputs: Option<Vec<String>>, // "txHash:outputIndex" keys for coin control
@@ -28,6 +32,7 @@ pub struct BuildTransaction {
 pub struct SweepAll {
     pub node_url: String,
     pub seed: String,
+    pub passphrase: String,
     pub network: String,
     pub destination_address: String,
     pub selected_outputs: Option<Vec<String>>, // "txHash:outputIndex" keys to sweep (for account filtering)
@@ -210,6 +215,7 @@ pub struct CreateUnsignedTx {
 #[derive(Debug, Clone)]
 pub struct SignUnsignedTx {
     pub seed: String,
+    pub passphrase: String,
     pub unsigned_tx_hex: String,
     pub network: String,
     pub spend_secret_key_hex: Option<String>,
@@ -219,6 +225,7 @@ pub struct SignUnsignedTx {
 #[derive(Debug, Clone)]
 pub struct PreviewUnsignedTx {
     pub seed: String,
+    pub passphrase: String,
     pub unsigned_tx_hex: String,
     pub network: String,
     pub spend_secret_key_hex: Option<String>,
