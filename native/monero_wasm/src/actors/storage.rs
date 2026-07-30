@@ -28,6 +28,7 @@ impl StorageActor {
             let request = dart_msg;
             let _ = self_addr
                 .notify(SaveWalletData {
+                    request_id: request.request_id,
                     password: request.password,
                     wallet_data_json: request.wallet_data_json,
                 })
@@ -41,6 +42,7 @@ impl StorageActor {
             let request = dart_msg;
             let _ = self_addr
                 .notify(LoadWalletData {
+                    request_id: request.request_id,
                     password: request.password,
                     encrypted_data: request.encrypted_data,
                 })
@@ -53,6 +55,7 @@ impl StorageActor {
         while let Some(dart_msg) = receiver.recv().await {
             let _ = self_addr
                 .notify(DeriveKey {
+                    request_id: dart_msg.request_id,
                     password: dart_msg.password,
                 })
                 .await;
@@ -65,6 +68,7 @@ impl StorageActor {
             let request = dart_msg;
             let _ = self_addr
                 .notify(SaveWithKey {
+                    request_id: request.request_id,
                     key_hex: request.key_hex,
                     salt_hex: request.salt_hex,
                     wallet_data_json: request.wallet_data_json,
@@ -76,12 +80,14 @@ impl StorageActor {
 
 #[derive(Debug, Clone)]
 pub struct SaveWalletData {
+    pub request_id: String,
     pub password: String,
     pub wallet_data_json: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct LoadWalletData {
+    pub request_id: String,
     pub password: String,
     pub encrypted_data: String,
 }
@@ -106,6 +112,7 @@ impl Notifiable<SaveWalletData> for StorageActor {
                 );
 
                 WalletDataSavedResponse {
+                    request_id: msg.request_id.clone(),
                     success: true,
                     error: None,
                     error_code: None,
@@ -120,6 +127,7 @@ impl Notifiable<SaveWalletData> for StorageActor {
 
                 let err = ErrorResponse::new(ERR_ENCRYPTION, format!("Encryption failed: {}", e));
                 WalletDataSavedResponse {
+                    request_id: msg.request_id.clone(),
                     success: false,
                     error: Some(err.message.clone()),
                     error_code: Some(err.code),
@@ -151,6 +159,7 @@ impl Notifiable<LoadWalletData> for StorageActor {
                     ErrorResponse::new(ERR_DECRYPTION, format!("Invalid encrypted data: {}", e))
                         .with_hint("The stored data may be corrupted");
                 WalletDataLoadedResponse {
+                    request_id: msg.request_id.clone(),
                     success: false,
                     error: Some(err.message.clone()),
                     error_code: Some(err.code),
@@ -170,6 +179,7 @@ impl Notifiable<LoadWalletData> for StorageActor {
                     log::info!("Wallet data decrypted successfully");
 
                     WalletDataLoadedResponse {
+                        request_id: msg.request_id.clone(),
                         success: true,
                         error: None,
                         error_code: None,
@@ -188,6 +198,7 @@ impl Notifiable<LoadWalletData> for StorageActor {
                     )
                     .with_hint("Wrong password or corrupted data");
                     WalletDataLoadedResponse {
+                        request_id: msg.request_id.clone(),
                         success: false,
                         error: Some(err.message.clone()),
                         error_code: Some(err.code),
@@ -204,6 +215,7 @@ impl Notifiable<LoadWalletData> for StorageActor {
                 let err = ErrorResponse::new(ERR_DECRYPTION, format!("Decryption failed: {}", e))
                     .with_hint("Check that the password is correct");
                 WalletDataLoadedResponse {
+                    request_id: msg.request_id.clone(),
                     success: false,
                     error: Some(err.message.clone()),
                     error_code: Some(err.code),
@@ -219,6 +231,7 @@ impl Notifiable<LoadWalletData> for StorageActor {
 
 #[derive(Debug, Clone)]
 pub struct DeriveKey {
+    pub request_id: String,
     pub password: String,
 }
 
@@ -228,6 +241,7 @@ impl Notifiable<DeriveKey> for StorageActor {
         match encryption::derive_key_fresh(&msg.password) {
             Ok((key, salt)) => {
                 EncryptionKeyDerivedResponse {
+                    request_id: msg.request_id.clone(),
                     success: true,
                     error: None,
                     error_code: None,
@@ -242,6 +256,7 @@ impl Notifiable<DeriveKey> for StorageActor {
                 let err =
                     ErrorResponse::new(ERR_ENCRYPTION, format!("Key derivation failed: {}", e));
                 EncryptionKeyDerivedResponse {
+                    request_id: msg.request_id.clone(),
                     success: false,
                     error: Some(err.message.clone()),
                     error_code: Some(err.code),
@@ -258,6 +273,7 @@ impl Notifiable<DeriveKey> for StorageActor {
 
 #[derive(Debug, Clone)]
 pub struct SaveWithKey {
+    pub request_id: String,
     pub key_hex: String,
     pub salt_hex: String,
     pub wallet_data_json: String,
@@ -277,6 +293,7 @@ impl Notifiable<SaveWithKey> for StorageActor {
             }
             _ => {
                 WalletDataSavedResponse {
+                    request_id: msg.request_id.clone(),
                     success: false,
                     error: Some("Invalid derived key".to_string()),
                     error_code: Some(ERR_INVALID_KEY),
@@ -297,6 +314,7 @@ impl Notifiable<SaveWithKey> for StorageActor {
             }
             _ => {
                 WalletDataSavedResponse {
+                    request_id: msg.request_id.clone(),
                     success: false,
                     error: Some("Invalid salt".to_string()),
                     error_code: Some(ERR_INVALID_KEY),
@@ -318,6 +336,7 @@ impl Notifiable<SaveWithKey> for StorageActor {
                 );
 
                 WalletDataSavedResponse {
+                    request_id: msg.request_id.clone(),
                     success: true,
                     error: None,
                     error_code: None,
@@ -330,6 +349,7 @@ impl Notifiable<SaveWithKey> for StorageActor {
             Err(e) => {
                 let err = ErrorResponse::new(ERR_ENCRYPTION, format!("Encryption failed: {}", e));
                 WalletDataSavedResponse {
+                    request_id: msg.request_id.clone(),
                     success: false,
                     error: Some(err.message.clone()),
                     error_code: Some(err.code),

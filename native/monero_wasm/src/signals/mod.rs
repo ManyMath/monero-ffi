@@ -474,12 +474,18 @@ pub struct OutProofGeneratedResponse {
 
 #[derive(Deserialize)]
 pub struct SaveWalletDataRequest {
+    pub request_id: String,
     pub password: String,
     pub wallet_data_json: String,
 }
 
 #[derive(Serialize)]
 pub struct WalletDataSavedResponse {
+    /// Echoed from the request. `SaveWalletDataRequest` and `SaveWithDerivedKeyRequest`
+    /// both answer with this type, so without it a caller waiting on the stream takes
+    /// whichever response lands first — including one from a request that already timed
+    /// out, whose ciphertext then gets written under the *next* request's wallet id.
+    pub request_id: String,
     pub success: bool,
     pub error: Option<String>,
     pub error_code: Option<u32>,
@@ -490,12 +496,15 @@ pub struct WalletDataSavedResponse {
 
 #[derive(Deserialize)]
 pub struct LoadWalletDataRequest {
+    pub request_id: String,
     pub password: String,
     pub encrypted_data: String,
 }
 
 #[derive(Serialize)]
 pub struct WalletDataLoadedResponse {
+    /// Echoed from the request; see `WalletDataSavedResponse`.
+    pub request_id: String,
     pub success: bool,
     pub error: Option<String>,
     pub error_code: Option<u32>,
@@ -508,11 +517,14 @@ pub struct WalletDataLoadedResponse {
 
 #[derive(Deserialize)]
 pub struct DeriveEncryptionKeyRequest {
+    pub request_id: String,
     pub password: String,
 }
 
 #[derive(Serialize)]
 pub struct EncryptionKeyDerivedResponse {
+    /// Echoed from the request; see `WalletDataSavedResponse`.
+    pub request_id: String,
     pub success: bool,
     pub error: Option<String>,
     pub error_code: Option<u32>,
@@ -524,6 +536,7 @@ pub struct EncryptionKeyDerivedResponse {
 
 #[derive(Deserialize)]
 pub struct SaveWithDerivedKeyRequest {
+    pub request_id: String,
     pub key_hex: String,
     pub salt_hex: String,
     pub wallet_data_json: String,

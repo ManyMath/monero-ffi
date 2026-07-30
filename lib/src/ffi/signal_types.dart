@@ -1064,52 +1064,67 @@ class GenerateOutProofRequest {
 }
 
 class SaveWalletDataRequest {
+  final String requestId;
   final String password;
   final String walletDataJson;
   const SaveWalletDataRequest({
+    required this.requestId,
     required this.password,
     required this.walletDataJson,
   });
 
   void sendSignalToRust() => _send('send_save_wallet_data_request', {
+    'request_id': requestId,
     'password': password,
     'wallet_data_json': walletDataJson,
   });
 }
 
 class LoadWalletDataRequest {
+  final String requestId;
   final String password;
   final String encryptedData;
   const LoadWalletDataRequest({
+    required this.requestId,
     required this.password,
     required this.encryptedData,
   });
 
   void sendSignalToRust() => _send('send_load_wallet_data_request', {
+    'request_id': requestId,
     'password': password,
     'encrypted_data': encryptedData,
   });
 }
 
 class DeriveEncryptionKeyRequest {
+  final String requestId;
   final String password;
-  const DeriveEncryptionKeyRequest({required this.password});
+  const DeriveEncryptionKeyRequest({
+    required this.requestId,
+    required this.password,
+  });
 
-  void sendSignalToRust() =>
-      _send('send_derive_encryption_key_request', {'password': password});
+  void sendSignalToRust() => _send('send_derive_encryption_key_request', {
+    'request_id': requestId,
+    'password': password,
+  });
 }
 
 class SaveWithDerivedKeyRequest {
+  final String requestId;
   final String keyHex;
   final String saltHex;
   final String walletDataJson;
   const SaveWithDerivedKeyRequest({
+    required this.requestId,
     required this.keyHex,
     required this.saltHex,
     required this.walletDataJson,
   });
 
   void sendSignalToRust() => _send('send_save_with_derived_key_request', {
+    'request_id': requestId,
     'key_hex': keyHex,
     'salt_hex': saltHex,
     'wallet_data_json': walletDataJson,
@@ -2044,6 +2059,7 @@ class OutProofGeneratedResponse {
 }
 
 class WalletDataSavedResponse {
+  final String requestId;
   final bool success;
   final String? error;
   final int? errorCode;
@@ -2052,6 +2068,7 @@ class WalletDataSavedResponse {
   final String? encryptedData;
 
   const WalletDataSavedResponse({
+    required this.requestId,
     required this.success,
     this.error,
     this.errorCode,
@@ -2062,6 +2079,7 @@ class WalletDataSavedResponse {
 
   factory WalletDataSavedResponse.fromJson(Map<String, dynamic> json) =>
       WalletDataSavedResponse(
+        requestId: json['request_id'] as String,
         success: json['success'] as bool,
         error: json['error'] as String?,
         errorCode: json['error_code'] as int?,
@@ -2076,6 +2094,7 @@ class WalletDataSavedResponse {
 }
 
 class WalletDataLoadedResponse {
+  final String requestId;
   final bool success;
   final String? error;
   final int? errorCode;
@@ -2084,6 +2103,7 @@ class WalletDataLoadedResponse {
   final String? walletDataJson;
 
   const WalletDataLoadedResponse({
+    required this.requestId,
     required this.success,
     this.error,
     this.errorCode,
@@ -2094,6 +2114,7 @@ class WalletDataLoadedResponse {
 
   factory WalletDataLoadedResponse.fromJson(Map<String, dynamic> json) =>
       WalletDataLoadedResponse(
+        requestId: json['request_id'] as String,
         success: json['success'] as bool,
         error: json['error'] as String?,
         errorCode: json['error_code'] as int?,
@@ -2108,6 +2129,7 @@ class WalletDataLoadedResponse {
 }
 
 class EncryptionKeyDerivedResponse {
+  final String requestId;
   final bool success;
   final String? error;
   final int? errorCode;
@@ -2117,6 +2139,7 @@ class EncryptionKeyDerivedResponse {
   final String? saltHex;
 
   const EncryptionKeyDerivedResponse({
+    required this.requestId,
     required this.success,
     this.error,
     this.errorCode,
@@ -2128,6 +2151,7 @@ class EncryptionKeyDerivedResponse {
 
   factory EncryptionKeyDerivedResponse.fromJson(Map<String, dynamic> json) =>
       EncryptionKeyDerivedResponse(
+        requestId: json['request_id'] as String,
         success: json['success'] as bool,
         error: json['error'] as String?,
         errorCode: json['error_code'] as int?,

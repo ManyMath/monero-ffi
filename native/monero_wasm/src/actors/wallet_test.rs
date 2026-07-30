@@ -309,8 +309,7 @@ async fn test_full_scan_lifecycle_with_bip39_seed() {
 // scanned for, so it was applied to whichever wallet happened to be loaded when it
 // arrived.
 
-const OTHER_SEED: &str =
-    "hemlock jubilee eden hacksaw boil superior inroads epoxy exhale orders cavernous \
+const OTHER_SEED: &str = "hemlock jubilee eden hacksaw boil superior inroads epoxy exhale orders cavernous \
      second brunt saved richly lower upgrade hitched launching deepest mostly playful \
      layout lower eden";
 
@@ -544,7 +543,11 @@ async fn a_reorg_from_the_previous_wallet_is_not_applied_to_the_one_just_loaded(
     // Wallet A is loaded and a scan starts for it.
     wallet
         .notify(
-            restore_at_height(BIP39_SEED, vec![make_test_output("a_out", 0, 1_000, 100)], 8_010),
+            restore_at_height(
+                BIP39_SEED,
+                vec![make_test_output("a_out", 0, 1_000, 100)],
+                8_010,
+            ),
             &test_ctx,
         )
         .await;
@@ -565,7 +568,10 @@ async fn a_reorg_from_the_previous_wallet_is_not_applied_to_the_one_just_loaded(
 
     // A's batch comes back carrying a reorg.
     wallet
-        .notify(handle_reorg(BIP39_SEED, reorg_batch("a_late"), scan_seq), &test_ctx)
+        .notify(
+            handle_reorg(BIP39_SEED, reorg_batch("a_late"), scan_seq),
+            &test_ctx,
+        )
         .await;
 
     let data = wallet.handle(GetWalletData, &test_ctx).await;
@@ -616,7 +622,10 @@ async fn a_reorg_for_the_wallet_still_loaded_is_applied() {
     let scan_seq = hydration_seq();
 
     wallet
-        .notify(handle_reorg(BIP39_SEED, reorg_batch("on_new_chain"), scan_seq), &test_ctx)
+        .notify(
+            handle_reorg(BIP39_SEED, reorg_batch("on_new_chain"), scan_seq),
+            &test_ctx,
+        )
         .await;
 
     let data = wallet.handle(GetWalletData, &test_ctx).await;
@@ -666,7 +675,10 @@ async fn re_hydrating_the_same_wallet_mid_scan_does_not_discard_its_reorg() {
         )
         .await;
     wallet
-        .notify(handle_reorg(BIP39_SEED, reorg_batch("on_new_chain"), scan_seq), &test_ctx)
+        .notify(
+            handle_reorg(BIP39_SEED, reorg_batch("on_new_chain"), scan_seq),
+            &test_ctx,
+        )
         .await;
 
     let data = wallet.handle(GetWalletData, &test_ctx).await;
