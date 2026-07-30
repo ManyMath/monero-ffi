@@ -160,6 +160,12 @@ pub struct HandleReorg {
     pub network: String,
     pub account_lookahead: u32,
     pub subaddress_lookahead: u32,
+    /// The hydration sequence the scan that produced `batch_results` started at.
+    ///
+    /// `StoreOutputs` carries the same value for the same reason: this message is the
+    /// other half of the same batch, and it writes to `core_state` directly rather than
+    /// through that handler, so its guard does not cover this path.
+    pub hydration_seq: u64,
 }
 
 #[derive(Debug, Clone)]

@@ -4,6 +4,7 @@ use super::*;
 use crate::actors::wallet::{RestoreOutputs, hydration_seq};
 use crate::messages::*;
 use messages::prelude::*;
+use zeroize::Zeroizing;
 
 const BIP39_SEED: &str =
     "color ranch color remove subway public water embrace before begin liberty fault";
@@ -467,5 +468,211 @@ async fn re_hydrating_the_same_wallet_mid_scan_does_not_discard_its_batches() {
     assert!(
         hashes.contains(&"a_late"),
         "the wallet's own scan results were dropped: {hashes:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The reorg path is the other half of the same batch
+// ---------------------------------------------------------------------------
+//
+// When a batch comes back the scan task takes one of two exits: `StoreOutputs`, or —
+// if its block hashes disagree with what the wallet has recorded — `HandleReorg`. Only
+// the first was bound to the wallet the scan was started for. `HandleReorg` writes to
+// `core_state` directly (a rollback, then this batch's outputs, hashes and key images),
+// so the guard above never covered it. Its rollback *removes* outputs, so applying
+// another wallet's reorg does not merely credit the wrong wallet: it deletes from it.
+
+const B_CHAIN_JSON: &str = r#"{"hashes":{"8000":"old_hash_8000"},"genesis_hash":null}"#;
+
+fn restore_at_height(
+    seed: &str,
+    outputs: Vec<monero_rust::WalletOutput>,
+    current_height: u64,
+) -> RestoreOutputs {
+    RestoreOutputs {
+        seed: seed.to_string(),
+        network: "stagenet".to_string(),
+        outputs,
+        daemon_height: 8_100,
+        current_height,
+        block_hashes_json: Some(B_CHAIN_JSON.to_string()),
+        pending_state_json: None,
+    }
+}
+
+/// A batch whose block 8000 does not hash to what the wallet recorded there: a reorg.
+fn reorg_batch(output_tx_hash: &str) -> Vec<monero_rust::BlockScanResult> {
+    vec![monero_rust::BlockScanResult {
+        block_height: 8_000,
+        block_hash: "new_hash_8000".to_string(),
+        block_timestamp: 1_700_000_000,
+        tx_count: 1,
+        outputs: vec![make_test_output(output_tx_hash, 0, 7_000, 8_000)],
+        daemon_height: 8_100,
+        spent_key_images: Vec::new(),
+        spent_key_image_tx_hashes: Vec::new(),
+    }]
+}
+
+fn handle_reorg(
+    seed: &str,
+    batch_results: Vec<monero_rust::BlockScanResult>,
+    hydration_seq: u64,
+) -> HandleReorg {
+    HandleReorg {
+        batch_results,
+        accounts_to_scan: None,
+        target_height: 8_100,
+        batch_start_height: 8_000,
+        node_url: "http://127.0.0.1:1".to_string(),
+        seed: Zeroizing::new(seed.to_string()),
+        passphrase: Zeroizing::new(String::new()),
+        network: "stagenet".to_string(),
+        account_lookahead: 0,
+        subaddress_lookahead: 0,
+        hydration_seq,
+    }
+}
+
+/// A reorg found by the previous wallet's scan must not roll back the one just loaded.
+#[tokio::test]
+async fn a_reorg_from_the_previous_wallet_is_not_applied_to_the_one_just_loaded() {
+    let ctx = Context::new();
+    let mut wallet = WalletActor::new(ctx.address());
+    let test_ctx = Context::new();
+
+    // Wallet A is loaded and a scan starts for it.
+    wallet
+        .notify(
+            restore_at_height(BIP39_SEED, vec![make_test_output("a_out", 0, 1_000, 100)], 8_010),
+            &test_ctx,
+        )
+        .await;
+    let scan_seq = hydration_seq();
+
+    // The user switches to wallet B before that scan's batch comes back. B holds an
+    // output above the fork height, and its own record of what block 8000 hashes to.
+    wallet
+        .notify(
+            restore_at_height(
+                OTHER_SEED,
+                vec![make_test_output("b_out", 0, 2_000, 8_005)],
+                8_010,
+            ),
+            &test_ctx,
+        )
+        .await;
+
+    // A's batch comes back carrying a reorg.
+    wallet
+        .notify(handle_reorg(BIP39_SEED, reorg_batch("a_late"), scan_seq), &test_ctx)
+        .await;
+
+    let data = wallet.handle(GetWalletData, &test_ctx).await;
+    let hashes: Vec<&str> = data.outputs.iter().map(|o| o.tx_hash.as_str()).collect();
+    assert!(
+        hashes.contains(&"b_out"),
+        "wallet B's own output was deleted by another wallet's reorg: {hashes:?}"
+    );
+    assert!(
+        !hashes.contains(&"a_late"),
+        "wallet B was credited with the other wallet's outputs: {hashes:?}"
+    );
+    assert_eq!(
+        wallet.current_height_for_test(),
+        8_010,
+        "wallet B was rewound to a fork point it never saw"
+    );
+    assert_eq!(
+        wallet.block_hash_for_test(8_000).as_deref(),
+        Some("old_hash_8000"),
+        "wallet B's chain record was overwritten from another wallet's batch"
+    );
+}
+
+/// The negative control, and it carries as much weight as the test above: a guard that
+/// refused every reorg would leave a wallet permanently on an orphaned chain, crediting
+/// it with outputs that no longer exist. The reorg the loaded wallet's *own* scan found
+/// must still be applied in full.
+#[tokio::test]
+async fn a_reorg_for_the_wallet_still_loaded_is_applied() {
+    let ctx = Context::new();
+    let mut wallet = WalletActor::new(ctx.address());
+    let test_ctx = Context::new();
+
+    wallet
+        .notify(
+            restore_at_height(
+                BIP39_SEED,
+                vec![
+                    make_test_output("kept_below_fork", 0, 1_000, 7_900),
+                    make_test_output("orphaned", 0, 2_000, 8_005),
+                ],
+                8_010,
+            ),
+            &test_ctx,
+        )
+        .await;
+    let scan_seq = hydration_seq();
+
+    wallet
+        .notify(handle_reorg(BIP39_SEED, reorg_batch("on_new_chain"), scan_seq), &test_ctx)
+        .await;
+
+    let data = wallet.handle(GetWalletData, &test_ctx).await;
+    let mut hashes: Vec<&str> = data.outputs.iter().map(|o| o.tx_hash.as_str()).collect();
+    hashes.sort();
+    assert_eq!(
+        hashes,
+        vec!["kept_below_fork", "on_new_chain"],
+        "the loaded wallet's own reorg must drop the orphaned output and take the new chain's"
+    );
+    assert_eq!(
+        wallet.block_hash_for_test(8_000).as_deref(),
+        Some("new_hash_8000"),
+        "the new chain's block hash must replace the orphaned one"
+    );
+}
+
+/// The second control, for the same reason `re_hydrating_the_same_wallet_mid_scan_does_not
+/// _discard_its_batches` exists: the send path re-hydrates the actor with the wallet it is
+/// already scanning before every transaction, and that must not turn its own reorg stale.
+#[tokio::test]
+async fn re_hydrating_the_same_wallet_mid_scan_does_not_discard_its_reorg() {
+    let ctx = Context::new();
+    let mut wallet = WalletActor::new(ctx.address());
+    let test_ctx = Context::new();
+
+    wallet
+        .notify(
+            restore_at_height(
+                BIP39_SEED,
+                vec![make_test_output("orphaned", 0, 2_000, 8_005)],
+                8_010,
+            ),
+            &test_ctx,
+        )
+        .await;
+    let scan_seq = hydration_seq();
+
+    wallet
+        .notify(
+            restore_at_height(
+                BIP39_SEED,
+                vec![make_test_output("orphaned", 0, 2_000, 8_005)],
+                8_010,
+            ),
+            &test_ctx,
+        )
+        .await;
+    wallet
+        .notify(handle_reorg(BIP39_SEED, reorg_batch("on_new_chain"), scan_seq), &test_ctx)
+        .await;
+
+    let data = wallet.handle(GetWalletData, &test_ctx).await;
+    let hashes: Vec<&str> = data.outputs.iter().map(|o| o.tx_hash.as_str()).collect();
+    assert!(
+        hashes.contains(&"on_new_chain"),
+        "the wallet's own reorg was dropped: {hashes:?}"
     );
 }

@@ -267,6 +267,19 @@ impl WalletActor {
     pub(crate) fn daemon_height_for_test(&self) -> u64 {
         self.core_state.daemon_height
     }
+
+    /// How far this wallet believes it has scanned. A reorg rolls it back, so applying one
+    /// wallet's reorg to another rewinds a wallet that never saw that fork.
+    pub(crate) fn current_height_for_test(&self) -> u64 {
+        self.core_state.current_height
+    }
+
+    pub(crate) fn block_hash_for_test(&self, height: u64) -> Option<String> {
+        self.core_state
+            .block_hashes
+            .get_hash(height)
+            .map(String::from)
+    }
 }
 
 impl WalletActor {
@@ -2126,6 +2139,7 @@ impl Notifiable<ContinueScan> for WalletActor {
                                 network,
                                 account_lookahead,
                                 subaddress_lookahead,
+                                hydration_seq: scan_hydration_seq,
                             })
                             .await;
                         return;
@@ -2294,6 +2308,8 @@ impl Notifiable<ContinueMultiWalletScan> for WalletActor {
         self.multi_wallet_scan_current_height = self.multi_wallet_scan_target_height;
 
         let scan_gen = PREFETCH_GENERATION.with(|g| g.get());
+        // Captured before the batch, so a wallet loaded while it runs invalidates it.
+        let scan_hydration_seq = hydration_seq();
 
         spawn_local(async move {
             let wallet_configs: Vec<monero_rust::WalletScanConfig> = wallets
@@ -2431,6 +2447,7 @@ impl Notifiable<ContinueMultiWalletScan> for WalletActor {
                                 network: first_wallet.network.clone(),
                                 account_lookahead: first_wallet.account_lookahead,
                                 subaddress_lookahead: first_wallet.subaddress_lookahead,
+                                hydration_seq: scan_hydration_seq,
                             })
                             .await;
                         return;
@@ -2676,6 +2693,19 @@ impl Notifiable<CheckMempoolConflicts> for WalletActor {
 #[async_trait]
 impl Notifiable<HandleReorg> for WalletActor {
     async fn notify(&mut self, msg: HandleReorg, ctx: &Context<Self>) {
+        // The other exit from the same batch, and the one `StoreOutputs`' guard does not
+        // reach: this handler writes to `core_state` itself. Left unbound it did more than
+        // credit the wrong wallet — `rollback_to_height` *removes* outputs at or above the
+        // fork, so a reorg found by the previous wallet's scan deleted from the wallet in
+        // front of the user and rewound it to a fork point it never saw.
+        if msg.hydration_seq < hydration_seq() {
+            log::warn!(
+                "[HandleReorg] dropping a reorg over {} block(s) from a scan started before \
+                 the current wallet was loaded",
+                msg.batch_results.len()
+            );
+            return;
+        }
         let outcome = monero_rust::process_batch_with_reorg_detection(
             &msg.batch_results,
             &mut self.core_state,
