@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use super::*;
+use crate::actors::wallet::{RestoreOutputs, hydration_seq};
 use crate::messages::*;
 use messages::prelude::*;
 
@@ -52,6 +53,7 @@ async fn test_store_outputs_message() {
         outputs: vec![make_test_output("test_hash", 0, 1_000_000_000_000, 1000)],
         daemon_height: 1100,
         block_hashes: vec![(1000, "hash_1000".to_string())],
+        hydration_seq: 0,
     };
 
     let test_ctx = Context::new();
@@ -120,6 +122,7 @@ async fn test_multiple_output_batches() {
                 outputs: vec![make_test_output("hash1", 0, 1_000_000_000_000, 1000)],
                 daemon_height: 1100,
                 block_hashes: vec![(1000, "bh_1000".to_string())],
+                hydration_seq: 0,
             },
             &test_ctx,
         )
@@ -133,6 +136,7 @@ async fn test_multiple_output_batches() {
                 outputs: vec![make_test_output("hash2", 1, 2_000_000_000_000, 1050)],
                 daemon_height: 1100,
                 block_hashes: vec![(1050, "bh_1050".to_string())],
+                hydration_seq: 0,
             },
             &test_ctx,
         )
@@ -188,6 +192,7 @@ async fn test_store_outputs_with_bip39_seed() {
                 outputs: vec![make_test_output("bip39_tx", 0, 500_000_000_000, 3_100_000)],
                 daemon_height: 3_200_000,
                 block_hashes: vec![(3_100_000, "bh_3100000".to_string())],
+                hydration_seq: 0,
             },
             &test_ctx,
         )
@@ -263,6 +268,7 @@ async fn test_full_scan_lifecycle_with_bip39_seed() {
                     (3_050_000, "bh_3050000".to_string()),
                     (3_100_000, "bh_3100000".to_string()),
                 ],
+                hydration_seq: 0,
             },
             &test_ctx,
         )
@@ -289,4 +295,177 @@ async fn test_full_scan_lifecycle_with_bip39_seed() {
 
     // Stop
     wallet.notify(StopScan, &test_ctx).await;
+}
+
+// ---------------------------------------------------------------------------
+// A scan belongs to the wallet it was scanned for
+// ---------------------------------------------------------------------------
+//
+// The actor holds one wallet at a time, and a scan runs in a task that outlives the
+// request that started it. Loading or switching a wallet — which the UI allows while a
+// scan is running, and which the send path does before every transaction — replaces that
+// state underneath the running scan. Nothing in a finished batch said which wallet it was
+// scanned for, so it was applied to whichever wallet happened to be loaded when it
+// arrived.
+
+const OTHER_SEED: &str =
+    "hemlock jubilee eden hacksaw boil superior inroads epoxy exhale orders cavernous \
+     second brunt saved richly lower upgrade hitched launching deepest mostly playful \
+     layout lower eden";
+
+fn restore(seed: &str, outputs: Vec<monero_rust::WalletOutput>) -> RestoreOutputs {
+    RestoreOutputs {
+        seed: seed.to_string(),
+        network: "stagenet".to_string(),
+        outputs,
+        daemon_height: 2000,
+        current_height: 1500,
+        block_hashes_json: None,
+        pending_state_json: None,
+    }
+}
+
+fn store(seed: &str, outputs: Vec<monero_rust::WalletOutput>, hydration_seq: u64) -> StoreOutputs {
+    StoreOutputs {
+        seed: seed.to_string(),
+        network: "stagenet".to_string(),
+        outputs,
+        daemon_height: 9_000,
+        block_hashes: vec![(8_000, "bh_8000".to_string())],
+        hydration_seq,
+    }
+}
+
+/// The batch that finishes after another wallet was loaded must not be credited to it.
+#[tokio::test]
+async fn a_batch_from_the_previous_wallet_is_not_applied_to_the_one_just_loaded() {
+    let ctx = Context::new();
+    let mut wallet = WalletActor::new(ctx.address());
+    let test_ctx = Context::new();
+
+    // Wallet A is loaded and a scan starts for it.
+    wallet
+        .notify(
+            restore(BIP39_SEED, vec![make_test_output("a_out", 0, 1_000, 100)]),
+            &test_ctx,
+        )
+        .await;
+    let scan_seq = hydration_seq();
+
+    // The user switches to wallet B before that scan's batch comes back.
+    wallet
+        .notify(
+            restore(OTHER_SEED, vec![make_test_output("b_out", 0, 2_000, 200)]),
+            &test_ctx,
+        )
+        .await;
+
+    // A's batch arrives.
+    wallet
+        .notify(
+            store(
+                BIP39_SEED,
+                vec![make_test_output("a_late", 0, 7_000, 900)],
+                scan_seq,
+            ),
+            &test_ctx,
+        )
+        .await;
+
+    let data = wallet.handle(GetWalletData, &test_ctx).await;
+    let hashes: Vec<&str> = data.outputs.iter().map(|o| o.tx_hash.as_str()).collect();
+    assert_eq!(
+        hashes,
+        vec!["b_out"],
+        "wallet B must hold only its own outputs"
+    );
+    assert_eq!(
+        data.seed.as_deref(),
+        Some(OTHER_SEED),
+        "a stale batch must not put the other wallet's seed back on the actor"
+    );
+    assert_eq!(
+        wallet.daemon_height_for_test(),
+        2000,
+        "wallet B must not be moved to the chain position of another wallet's scan"
+    );
+}
+
+/// The negative control. A guard on this path that simply refused everything would leave
+/// every wallet permanently empty, which is worse than the bug — and would still pass the
+/// test above.
+#[tokio::test]
+async fn a_batch_for_the_wallet_still_loaded_is_applied() {
+    let ctx = Context::new();
+    let mut wallet = WalletActor::new(ctx.address());
+    let test_ctx = Context::new();
+
+    wallet
+        .notify(
+            restore(BIP39_SEED, vec![make_test_output("a_out", 0, 1_000, 100)]),
+            &test_ctx,
+        )
+        .await;
+    let scan_seq = hydration_seq();
+
+    wallet
+        .notify(
+            store(
+                BIP39_SEED,
+                vec![make_test_output("a_late", 0, 7_000, 900)],
+                scan_seq,
+            ),
+            &test_ctx,
+        )
+        .await;
+
+    let data = wallet.handle(GetWalletData, &test_ctx).await;
+    let mut hashes: Vec<&str> = data.outputs.iter().map(|o| o.tx_hash.as_str()).collect();
+    hashes.sort();
+    assert_eq!(hashes, vec!["a_late", "a_out"]);
+}
+
+/// The send path re-hydrates the actor with the wallet it is already scanning before every
+/// transaction. That must not cancel the scan's own results — it is why this guard is a
+/// separate counter from the one that cancels a scan, rather than a `bump_generation()`
+/// in the restore handler.
+#[tokio::test]
+async fn re_hydrating_the_same_wallet_mid_scan_does_not_discard_its_batches() {
+    let ctx = Context::new();
+    let mut wallet = WalletActor::new(ctx.address());
+    let test_ctx = Context::new();
+
+    wallet
+        .notify(
+            restore(BIP39_SEED, vec![make_test_output("a_out", 0, 1_000, 100)]),
+            &test_ctx,
+        )
+        .await;
+    let scan_seq = hydration_seq();
+
+    // A scan started, then the send path re-hydrated the *same* wallet, then the batch
+    // came back. Its outputs are this wallet's and belong in it.
+    wallet
+        .notify(
+            restore(BIP39_SEED, vec![make_test_output("a_out", 0, 1_000, 100)]),
+            &test_ctx,
+        )
+        .await;
+    wallet
+        .notify(
+            store(
+                BIP39_SEED,
+                vec![make_test_output("a_late", 0, 7_000, 900)],
+                scan_seq,
+            ),
+            &test_ctx,
+        )
+        .await;
+
+    let data = wallet.handle(GetWalletData, &test_ctx).await;
+    let hashes: Vec<&str> = data.outputs.iter().map(|o| o.tx_hash.as_str()).collect();
+    assert!(
+        hashes.contains(&"a_late"),
+        "the wallet's own scan results were dropped: {hashes:?}"
+    );
 }

@@ -91,6 +91,36 @@ thread_local! {
     static MULTI_SCANNER_CACHE: RefCell<Option<(u64, monero_rust::CachedScanners)>> = RefCell::new(None);
 }
 
+thread_local! {
+    /// How many times a wallet has been loaded into this actor.
+    ///
+    /// A scan runs in a spawned task that outlives the request that started it, and it
+    /// reports what it found by notifying the actor. Nothing in that report says which
+    /// wallet it was scanned for, so a batch that finishes after the user has switched or
+    /// loaded another wallet is credited to whichever wallet the actor now holds: its
+    /// outputs, its block hashes and its scanned height all land on a wallet that never
+    /// saw those blocks. That wallet then believes it has scanned them, so it skips its
+    /// own outputs and reports itself synced — the harm finding 10 describes, arrived at
+    /// from inside rather than from a lying node.
+    ///
+    /// Deliberately separate from PREFETCH_GENERATION. That counter *cancels* a scan, and
+    /// loading a wallet is not always a reason to: the send path re-hydrates the actor
+    /// with the wallet it is already scanning before every transaction, and cancelling
+    /// there would stop the scan every time a user sends. This counter only decides
+    /// whether a batch that has already been scanned still belongs to the wallet in hand.
+    static HYDRATION_SEQ: Cell<u64> = const { Cell::new(0) };
+}
+
+/// The current hydration sequence. A scan captures this when it starts.
+pub(crate) fn hydration_seq() -> u64 {
+    HYDRATION_SEQ.with(|c| c.get())
+}
+
+/// Record that a wallet has been loaded, invalidating scans started before now.
+fn bump_hydration_seq() {
+    HYDRATION_SEQ.with(|c| c.set(c.get().saturating_add(1)));
+}
+
 /// Increment the generation counter and clear any buffered prefetch.
 /// Returns the new generation value.
 fn bump_generation() -> u64 {
@@ -228,6 +258,16 @@ pub struct WalletActor {
 }
 
 impl Actor for WalletActor {}
+
+#[cfg(test)]
+impl WalletActor {
+    /// The chain height this wallet believes it has seen. Test-only: the harm a batch
+    /// from another wallet does is not only the outputs it adds but the chain position it
+    /// moves this wallet to, together with the block hashes it records there.
+    pub(crate) fn daemon_height_for_test(&self) -> u64 {
+        self.core_state.daemon_height
+    }
+}
 
 impl WalletActor {
     pub fn new(self_addr: Address<Self>) -> Self {
@@ -753,6 +793,9 @@ impl WalletActor {
                 continue;
             }
 
+            // Captured before the scan, so a wallet loaded while it runs invalidates it.
+            let scan_hydration_seq = hydration_seq();
+
             let seed = match pre_resolve_bip39(
                 &request.seed,
                 &request.passphrase,
@@ -817,6 +860,7 @@ impl WalletActor {
                             outputs: filtered_outputs.clone(),
                             daemon_height: result.daemon_height,
                             block_hashes: vec![(result.block_height, result.block_hash.clone())],
+                            hydration_seq: scan_hydration_seq,
                         })
                         .await;
 
@@ -1404,14 +1448,14 @@ impl WalletActor {
 }
 
 #[derive(Debug, Clone)]
-struct RestoreOutputs {
-    seed: String,
-    network: String,
-    outputs: Vec<monero_rust::WalletOutput>,
-    daemon_height: u64,
-    current_height: u64,
-    block_hashes_json: Option<String>,
-    pending_state_json: Option<String>,
+pub(crate) struct RestoreOutputs {
+    pub(crate) seed: String,
+    pub(crate) network: String,
+    pub(crate) outputs: Vec<monero_rust::WalletOutput>,
+    pub(crate) daemon_height: u64,
+    pub(crate) current_height: u64,
+    pub(crate) block_hashes_json: Option<String>,
+    pub(crate) pending_state_json: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1423,6 +1467,23 @@ struct GetPendingStateMsg;
 #[async_trait]
 impl Notifiable<RestoreOutputs> for WalletActor {
     async fn notify(&mut self, msg: RestoreOutputs, _ctx: &Context<Self>) {
+        // A *different* wallet is being loaded into the actor, so anything a scan started
+        // before now finds belongs to the wallet that was here before it, not to this one.
+        //
+        // Only when it differs. The send path re-hydrates the actor with the wallet it is
+        // already scanning before every transaction, and treating that as a wallet change
+        // would throw away the scan's own results each time a user sends.
+        let is_a_different_wallet = self
+            .seed
+            .as_deref()
+            .is_some_and(|held| held != msg.seed.as_str())
+            || self
+                .network
+                .as_deref()
+                .is_some_and(|held| held != msg.network.as_str());
+        if is_a_different_wallet {
+            bump_hydration_seq();
+        }
         log::info!(
             "[RestoreOutputs] outputs={}, daemon_height={}, current_height={}, has_block_hashes={}",
             msg.outputs.len(),
@@ -1581,6 +1642,20 @@ impl Notifiable<GetBalanceRequest> for WalletActor {
 #[async_trait]
 impl Notifiable<StoreOutputs> for WalletActor {
     async fn notify(&mut self, msg: StoreOutputs, _ctx: &Context<Self>) {
+        // Which wallet was this scanned for? Until now nothing asked: the handler set
+        // self.seed from the batch and appended its outputs, so a batch that came back
+        // after another wallet was loaded overwrote the seed and credited that wallet
+        // with outputs it does not own — and advanced its scanned height past blocks it
+        // never saw.
+        if msg.hydration_seq < hydration_seq() {
+            log::warn!(
+                "[StoreOutputs] dropping {} output(s) and {} block hash(es) from a scan \
+                 started before the current wallet was loaded",
+                msg.outputs.len(),
+                msg.block_hashes.len()
+            );
+            return;
+        }
         log::info!(
             "[StoreOutputs] new_outputs={}, daemon_height={}, total_after={}, block_hashes={}",
             msg.outputs.len(),
@@ -1917,6 +1992,8 @@ impl Notifiable<ContinueScan> for WalletActor {
         self.scan_current_height = self.scan_target_height;
 
         let scan_gen = PREFETCH_GENERATION.with(|g| g.get());
+        // Captured before the batch, so a wallet loaded while it runs invalidates it.
+        let scan_hydration_seq = hydration_seq();
 
         spawn_local(async move {
             let lookahead = monero_rust::compute_lookahead(
@@ -2095,6 +2172,7 @@ impl Notifiable<ContinueScan> for WalletActor {
                             outputs: processed.outputs_to_store,
                             daemon_height: processed.daemon_height,
                             block_hashes: processed.block_hashes.clone(),
+                            hydration_seq: scan_hydration_seq,
                         })
                         .await;
 

@@ -65,6 +65,10 @@ pub struct StoreOutputs {
     pub outputs: Vec<monero_rust::WalletOutput>,
     pub daemon_height: u64,
     pub block_hashes: Vec<(u64, String)>,
+    /// The value of `wallet::hydration_seq()` when the scan that produced this batch
+    /// started. The actor drops the batch if a wallet has been loaded since — see the
+    /// HYDRATION_SEQ comment in actors/wallet.rs.
+    pub hydration_seq: u64,
 }
 
 #[derive(Debug, Clone)]
