@@ -233,7 +233,7 @@ impl Notifiable<DeriveKey> for StorageActor {
                     error_code: None,
                     error_hint: None,
                     error_transient: None,
-                    key_hex: Some(hex::encode(key)),
+                    key_hex: Some(hex::encode(&*key)),
                     salt_hex: Some(hex::encode(salt)),
                 }
                 .send_signal_to_dart();
@@ -266,9 +266,12 @@ pub struct SaveWithKey {
 #[async_trait]
 impl Notifiable<SaveWithKey> for StorageActor {
     async fn notify(&mut self, msg: SaveWithKey, _ctx: &Context<Self>) {
-        let key_bytes = match hex::decode(&msg.key_hex) {
+        // Zeroizing: this is the derived encryption key coming back from Dart on every
+        // save, so it is here on every save. Dart's copy is an immutable JS string that
+        // cannot be wiped — that half is not fixable from Rust — but ours can be.
+        let key_bytes = match hex::decode(&msg.key_hex).map(zeroize::Zeroizing::new) {
             Ok(b) if b.len() == 32 => {
-                let mut arr = [0u8; 32];
+                let mut arr = zeroize::Zeroizing::new([0u8; 32]);
                 arr.copy_from_slice(&b);
                 arr
             }
