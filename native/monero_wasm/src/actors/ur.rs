@@ -3,7 +3,10 @@ use crate::messages::{ResetUrDecoder, StartUrEncoder, StopUrEncoder, UrDecodeFra
 use crate::signals::{QrFrameResponse, UrDecodeCompleteResponse, UrDecodeProgressResponse};
 use async_trait::async_trait;
 use messages::prelude::{Actor, Address, Context, Notifiable};
-use monero_rust::ur_codec::{UrDecoder, UrEncoder};
+use monero_rust::ur_codec::{
+    UR_TYPE_KEY_IMAGE, UR_TYPE_OUTPUT, UR_TYPE_SIGNED_TX, UR_TYPE_UNSIGNED_TX, UrDecoder,
+    UrEncoder,
+};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio_with_wasm::alias as tokio;
@@ -67,14 +70,39 @@ impl UrActor {
     }
 }
 
+/// Resolve a requested UR type to a `&'static str`.
+///
+/// `ur::Encoder` borrows its type for the encoder's lifetime and `UrEncoder` declares
+/// `'static`, which used to be satisfied by `Box::leak`ing the string off the wire. That is
+/// an unbounded leak: `send_start_ur_encoder_request` is a wasm-bindgen export, callable
+/// from the page as often and with as long a type as it likes, and nothing frees what it
+/// leaks. The four types this app transfers are known, so resolving to a constant both
+/// removes the leak and refuses a type we would never emit.
+fn resolve_ur_type(requested: &str) -> Option<&'static str> {
+    match requested {
+        UR_TYPE_UNSIGNED_TX => Some(UR_TYPE_UNSIGNED_TX),
+        UR_TYPE_SIGNED_TX => Some(UR_TYPE_SIGNED_TX),
+        UR_TYPE_KEY_IMAGE => Some(UR_TYPE_KEY_IMAGE),
+        UR_TYPE_OUTPUT => Some(UR_TYPE_OUTPUT),
+        // The `ur` crate's own default type, and what a plain `ur:bytes/...` transfer uses.
+        "bytes" => Some("bytes"),
+        _ => None,
+    }
+}
+
 #[async_trait]
 impl Notifiable<StartUrEncoder> for UrActor {
     async fn notify(&mut self, msg: StartUrEncoder, _ctx: &Context<Self>) {
+        // Resolved before the generation is bumped: a request we refuse must not also
+        // cancel the QR already on screen.
+        let Some(ur_type) = resolve_ur_type(&msg.ur_type) else {
+            #[cfg(target_arch = "wasm32")]
+            web_sys::console::error_1(&format!("unknown UR type: {}", msg.ur_type).into());
+            return;
+        };
+
         // Bump generation to cancel any running encoder loop
         let generation = ENCODER_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
-
-        // Leak the UR type string so it lives for 'static (required by ur::Encoder)
-        let ur_type: &'static str = Box::leak(msg.ur_type.into_boxed_str());
 
         let encoder = match UrEncoder::new(&msg.data, ur_type, msg.max_fragment_len) {
             Ok(e) => Arc::new(std::sync::Mutex::new(e)),
@@ -138,32 +166,19 @@ impl Notifiable<UrDecodeFrame> for UrActor {
             Ok(progress) => {
                 UrDecodeProgressResponse {
                     progress: progress.progress,
-                    is_complete: progress.is_complete,
+                    is_complete: progress.is_complete(),
                 }
                 .send_signal_to_dart();
 
-                if progress.is_complete {
-                    // Try multi-part message first, fall back to single-part
-                    let data = if let Ok(Some(bytes)) = self.decoder.message() {
-                        bytes
-                    } else {
-                        match monero_rust::ur_codec::decode_single(&msg.uri) {
-                            Ok(bytes) => bytes,
-                            Err(_) => return,
-                        }
-                    };
-
-                    // Extract UR type from the URI: "ur:TYPE/..."
-                    let ur_type = msg
-                        .uri
-                        .strip_prefix("ur:")
-                        .and_then(|s| s.split('/').next())
-                        .unwrap_or("bytes")
-                        .to_string();
-
+                // The bytes and the type both come out of the transfer that finished, so
+                // this response cannot describe one transfer with the other's data. It
+                // used to take the bytes from the decoder's accumulator — which was never
+                // cleared, so a finished transfer answered for later frames — and the type
+                // from whichever URI was in hand.
+                if let Some(done) = progress.completed {
                     UrDecodeCompleteResponse {
-                        data_hex: hex::encode(&data),
-                        ur_type,
+                        data_hex: hex::encode(&done.message),
+                        ur_type: done.ur_type,
                     }
                     .send_signal_to_dart();
                 }
@@ -181,5 +196,34 @@ impl Notifiable<UrDecodeFrame> for UrActor {
 impl Notifiable<ResetUrDecoder> for UrActor {
     async fn notify(&mut self, _msg: ResetUrDecoder, _ctx: &Context<Self>) {
         self.decoder.reset();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolves_every_ur_type_this_app_transfers() {
+        for ur_type in [
+            UR_TYPE_UNSIGNED_TX,
+            UR_TYPE_SIGNED_TX,
+            UR_TYPE_KEY_IMAGE,
+            UR_TYPE_OUTPUT,
+            "bytes",
+        ] {
+            assert_eq!(
+                resolve_ur_type(ur_type),
+                Some(ur_type),
+                "the encoder refuses a type the app sends"
+            );
+        }
+    }
+
+    #[test]
+    fn refuses_a_ur_type_the_app_never_sends() {
+        assert_eq!(resolve_ur_type("xmr-txunsigned-but-not-really"), None);
+        assert_eq!(resolve_ur_type(""), None);
+        assert_eq!(resolve_ur_type(&"a".repeat(4096)), None);
     }
 }
