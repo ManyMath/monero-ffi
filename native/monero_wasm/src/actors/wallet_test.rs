@@ -303,8 +303,8 @@ async fn test_full_scan_lifecycle_with_bip39_seed() {
 // ---------------------------------------------------------------------------
 //
 // The actor holds one wallet at a time, and a scan runs in a task that outlives the
-// request that started it. Loading or switching a wallet — which the UI allows while a
-// scan is running, and which the send path does before every transaction — replaces that
+// request that started it. Loading or switching a wallet - which the UI allows while a
+// scan is running, and which the send path does before every transaction - replaces that
 // state underneath the running scan. Nothing in a finished batch said which wallet it was
 // scanned for, so it was applied to whichever wallet happened to be loaded when it
 // arrived.
@@ -391,8 +391,8 @@ async fn a_batch_from_the_previous_wallet_is_not_applied_to_the_one_just_loaded(
     );
 }
 
-/// The negative control. A guard on this path that simply refused everything would leave
-/// every wallet permanently empty, which is worse than the bug — and would still pass the
+/// The negative control. A guard on this path that rejected everything would leave
+/// every wallet permanently empty, which is worse than the bug - and would still pass the
 /// test above.
 #[tokio::test]
 async fn a_batch_for_the_wallet_still_loaded_is_applied() {
@@ -426,7 +426,7 @@ async fn a_batch_for_the_wallet_still_loaded_is_applied() {
 }
 
 /// The send path re-hydrates the actor with the wallet it is already scanning before every
-/// transaction. That must not cancel the scan's own results — it is why this guard is a
+/// transaction. That must not cancel the scan's own results - it is why this guard is a
 /// separate counter from the one that cancels a scan, rather than a `bump_generation()`
 /// in the restore handler.
 #[tokio::test]
@@ -474,12 +474,12 @@ async fn re_hydrating_the_same_wallet_mid_scan_does_not_discard_its_batches() {
 // The reorg path is the other half of the same batch
 // ---------------------------------------------------------------------------
 //
-// When a batch comes back the scan task takes one of two exits: `StoreOutputs`, or —
-// if its block hashes disagree with what the wallet has recorded — `HandleReorg`. Only
+// When a batch comes back the scan task takes one of two exits: `StoreOutputs`, or -
+// if its block hashes disagree with what the wallet has recorded - `HandleReorg`. Only
 // the first was bound to the wallet the scan was started for. `HandleReorg` writes to
 // `core_state` directly (a rollback, then this batch's outputs, hashes and key images),
 // so the guard above never covered it. Its rollback *removes* outputs, so applying
-// another wallet's reorg does not merely credit the wrong wallet: it deletes from it.
+// another wallet's reorg does not just credit the wrong wallet: it deletes from it.
 
 const B_CHAIN_JSON: &str = r#"{"hashes":{"8000":"old_hash_8000"},"genesis_hash":null}"#;
 
@@ -597,7 +597,7 @@ async fn a_reorg_from_the_previous_wallet_is_not_applied_to_the_one_just_loaded(
 }
 
 /// The negative control, and it carries as much weight as the test above: a guard that
-/// refused every reorg would leave a wallet permanently on an orphaned chain, crediting
+/// rejected every reorg would leave a wallet permanently on an orphaned chain, crediting
 /// it with outputs that no longer exist. The reorg the loaded wallet's *own* scan found
 /// must still be applied in full.
 #[tokio::test]

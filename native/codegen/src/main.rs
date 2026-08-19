@@ -103,7 +103,7 @@ fn dart_fmt(content: String) -> Result<String, Box<dyn std::error::Error>> {
 /// Run `rustfmt` over a Rust source string and return the formatted result.
 ///
 /// Without this the generated file loses to `cargo fmt` the first time anyone runs it, and
-/// --check then reports a drift nobody introduced.
+/// --check then reports a drift no one introduced.
 fn rust_fmt(content: String) -> Result<String, Box<dyn std::error::Error>> {
     let tmp = std::env::temp_dir().join("codegen_rust_fmt.rs");
     std::fs::write(&tmp, &content)?;

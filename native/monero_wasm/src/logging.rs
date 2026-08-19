@@ -17,7 +17,7 @@ impl Log for ConsoleLogger {
             return;
         }
         let msg = format!(
-            "[{}] {} — {}",
+            "[{}] {} - {}",
             record.level(),
             record.target(),
             record.args()
@@ -44,7 +44,7 @@ static LOGGER: ConsoleLogger = ConsoleLogger;
 
 /// Initialize the logger. Safe to call more than once (subsequent calls are no-ops).
 pub fn init() {
-    // `set_logger` returns Err if already set — that's fine.
+    // `set_logger` returns Err if already set - that's fine.
     let _ = log::set_logger(&LOGGER);
     log::set_max_level(LevelFilter::Debug);
 }

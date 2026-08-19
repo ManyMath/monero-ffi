@@ -6,10 +6,3 @@
 [workspace]
 resolver = "3"
 members = ["native/monero_wasm"]
-# vendor/ is the monero-rust submodule, which has its own [workspace] in rust/. Without this
-# exclude that does NOT protect it: a path dependency living under this manifest's directory
-# is claimed as a member of THIS workspace, and cargo absorbs it silently rather than
-# complaining. The symptom is quiet — monero-rust's five crates and their dev-dependencies
-# join this lockfile, and `cargo test --workspace` here starts running the library's suite,
-# which belongs to the other repo's runner. `cargo metadata --no-deps` is what shows it.
-exclude = ["vendor"]

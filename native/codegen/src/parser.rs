@@ -38,9 +38,9 @@ pub fn parse_signals(src: &str) -> Result<Vec<SignalClass>, Box<dyn std::error::
 
 fn classify_direction(name: &str, has_serialize: bool, has_deserialize: bool) -> Direction {
     // Primary classification by name suffix + derive combination:
-    // - "Response" or "Update" suffix with Serialize → Rust2Dart
-    // - "Request" suffix with Deserialize → Dart2Rust
-    // - Everything else → Shared (sub-struct)
+    // - "Response" or "Update" suffix with Serialize -> Rust2Dart
+    // - "Request" suffix with Deserialize -> Dart2Rust
+    // - Everything else -> Shared (sub-struct)
     if has_serialize && (name.ends_with("Response") || name.ends_with("Update")) {
         Direction::Rust2Dart
     } else if has_deserialize && name.ends_with("Request") {
@@ -149,7 +149,7 @@ fn parse_type(ty: &syn::Type) -> Result<RustType, Box<dyn std::error::Error>> {
 ///
 /// `skip` and `skip_serializing` drop it unconditionally; `skip_serializing_if` drops it
 /// for some values. All three mean Dart may not find the key. `skip_deserializing` is not
-/// one of them — it only affects Rust's own decoding of a Dart request.
+/// one of them - it only affects Rust's own decoding of a Dart request.
 fn check_skips_serializing(field: &syn::Field) -> Option<String> {
     for attr in &field.attrs {
         if !attr.path().is_ident("serde") {

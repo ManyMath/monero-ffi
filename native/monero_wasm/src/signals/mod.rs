@@ -483,7 +483,7 @@ pub struct SaveWalletDataRequest {
 pub struct WalletDataSavedResponse {
     /// Echoed from the request. `SaveWalletDataRequest` and `SaveWithDerivedKeyRequest`
     /// both answer with this type, so without it a caller waiting on the stream takes
-    /// whichever response lands first — including one from a request that already timed
+    /// whichever response lands first - including one from a request that already timed
     /// out, whose ciphertext then gets written under the *next* request's wallet id.
     pub request_id: String,
     pub success: bool,
@@ -829,7 +829,7 @@ pub struct TransactionDestinationPreview {
     /// The transaction declares this output as change.
     pub is_change: bool,
     /// This wallet can spend from `address`. Change that is not ours is the redirection
-    /// attack the signer refuses outright — the screen must show it, not hide it.
+    /// attack the signer rejects - the screen must show it, not hide it.
     pub is_ours: bool,
 }
 

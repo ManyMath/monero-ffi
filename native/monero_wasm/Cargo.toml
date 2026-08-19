@@ -24,11 +24,11 @@ serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.45.0", features = ["rt", "macros", "time", "sync"] }
 async-trait = "0.1.87"
 messages = "0.3.1"
-monero-rust = { path = "../../vendor/monero-rust/rust/monero-rust" }
+monero-rust = { path = "../../../monero-rust/rust/monero-rust" }
 
 # Encryption lives in monero-rust's encryption.rs, not here; chacha20poly1305, argon2 and
 # rand were declared but used by no file in this crate.
-# getrandom stays — actors/wallet.rs calls it directly, and the js feature is what makes it
+# getrandom stays - actors/wallet.rs calls it directly, and the js feature is what makes it
 # work on wasm32.
 getrandom = { version = "0.2", features = ["js"] }
 base64 = "0.22"

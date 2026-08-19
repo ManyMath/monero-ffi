@@ -100,7 +100,7 @@ thread_local! {
     /// loaded another wallet is credited to whichever wallet the actor now holds: its
     /// outputs, its block hashes and its scanned height all land on a wallet that never
     /// saw those blocks. That wallet then believes it has scanned them, so it skips its
-    /// own outputs and reports itself synced — the harm finding 10 describes, arrived at
+    /// own outputs and reports itself synced - the harm finding 10 describes, arrived at
     /// from inside rather than from a lying node.
     ///
     /// Deliberately separate from PREFETCH_GENERATION. That counter *cancels* a scan, and
@@ -1658,7 +1658,7 @@ impl Notifiable<StoreOutputs> for WalletActor {
         // Which wallet was this scanned for? Until now nothing asked: the handler set
         // self.seed from the batch and appended its outputs, so a batch that came back
         // after another wallet was loaded overwrote the seed and credited that wallet
-        // with outputs it does not own — and advanced its scanned height past blocks it
+        // with outputs it does not own - and advanced its scanned height past blocks it
         // never saw.
         if msg.hydration_seq < hydration_seq() {
             log::warn!(
@@ -1728,11 +1728,11 @@ impl Handler<UpdateOutputKeyImages> for WalletActor {
     async fn handle(&mut self, msg: UpdateOutputKeyImages, _ctx: &Context<Self>) -> Self::Result {
         // Sorting into monero's export order, verifying and assigning are one call.
         // Sorting the output vector invalidates `WalletState`'s key_image -> index map,
-        // so doing that separately leaves every later lookup by key image — freezing,
-        // marking spent, confirming a pending spend — landing on the wrong output. And
+        // so doing that separately leaves every later lookup by key image - freezing,
+        // marking spent, confirming a pending spend - landing on the wrong output. And
         // the verification has to happen here because this is where the pairing is
         // decided: each ring signature is checked against the public key of the output
-        // it actually lands on — at `offset + n`, not `n` — as monero does.
+        // it actually lands on - at `offset + n`, not `n` - as monero does.
         let result = self
             .core_state
             .assign_verified_key_images_in_export_order(&msg.import);
@@ -2695,7 +2695,7 @@ impl Notifiable<HandleReorg> for WalletActor {
     async fn notify(&mut self, msg: HandleReorg, ctx: &Context<Self>) {
         // The other exit from the same batch, and the one `StoreOutputs`' guard does not
         // reach: this handler writes to `core_state` itself. Left unbound it did more than
-        // credit the wrong wallet — `rollback_to_height` *removes* outputs at or above the
+        // credit the wrong wallet - `rollback_to_height` *removes* outputs at or above the
         // fork, so a reorg found by the previous wallet's scan deleted from the wallet in
         // front of the user and rewound it to a fork point it never saw.
         if msg.hydration_seq < hydration_seq() {

@@ -109,7 +109,7 @@ fn gen_shared_class(sig: &SignalClass) -> String {
         out.push('\n');
         out.push_str(&gen_constructor(&sig.name, &sig.fields));
     } else if sig.fields.is_empty() {
-        // Serialize-only with no fields — shouldn't happen but handle gracefully
+        // Serialize-only with no fields - shouldn't happen but handle gracefully
         out.push('\n');
         out.push_str(&format!("  const {}();\n", sig.name));
     } else {
@@ -333,7 +333,7 @@ fn gen_send_signal_to_rust(sig: &SignalClass) -> String {
         );
     }
 
-    // 1-field, non-conditional → compact form
+    // 1-field, non-conditional -> compact form
     let entries: Vec<String> = sig.fields.iter().map(to_json_entry).collect();
     let all_simple = entries.iter().all(|e| !e.starts_with("if "));
     if entries.len() == 1 && all_simple {
@@ -406,9 +406,9 @@ fn gen_from_json_block(name: &str, fields: &[Field]) -> String {
     out
 }
 
-/// Whether the `fromJson` below survives the key being absent from the JSON.
+/// Whether the `fromJson` below still works when the key is absent from the JSON.
 ///
-/// Keep this in step with `from_json_expr` — it is the same match, read for whether the
+/// Keep this in step with `from_json_expr` - it is the same match, read for whether the
 /// arm tolerates `null`. Only two arms do: every `Option` branch, which either tests for
 /// null or casts to a nullable type, and the `bool` + `#[serde(default)]` arm with its
 /// `?? false`. Everything else casts straight out of the map and throws.

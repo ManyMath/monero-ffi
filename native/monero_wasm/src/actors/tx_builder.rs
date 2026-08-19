@@ -1825,9 +1825,9 @@ impl Notifiable<ImportKeyImages> for TxBuilderActor {
             // The signed form, not the bare hex list: each ring signature is what proves
             // its key image belongs to the output it will be paired with, and the pairing
             // is positional. Dropping the proofs here leaves nothing downstream able to
-            // tell a genuine export from one whose entries were reordered or invented.
+            // tell a real export from one whose entries were reordered or invented.
             // The same struct carries the file's `offset`, which says which output entry 0
-            // is about — a partial export starts part-way through the transfer list.
+            // is about - a partial export starts part-way through the transfer list.
             let import = match monero_rust::key_image_signing::import_signed_key_images_from_seed(
                 &msg.seed,
                 &msg.passphrase,
@@ -1854,9 +1854,9 @@ impl Notifiable<ImportKeyImages> for TxBuilderActor {
             // Assign key images positionally to wallet outputs so the view-only
             // wallet can later detect spends during blockchain scanning. The wallet
             // actor sorts outputs into Monero's export order, verifies each signature
-            // against the output it lands on, and reindexes, in one step. It can refuse
-            // the list — a key image that does not belong to its output, a repeated one,
-            // or more than we hold outputs for — and a refusal has to reach the user:
+            // against the output it lands on, and reindexes, in one step. It can reject
+            // the list - a key image that does not belong to its output, a repeated one,
+            // or more than we hold outputs for - and a refusal has to reach the user:
             // reporting a successful import of key images that were never applied leaves
             // them believing the wallet tracks spends when it does not, which reads as a
             // zero balance change rather than as an error.

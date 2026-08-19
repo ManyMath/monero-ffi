@@ -1,0 +1,39 @@
+# monero-ffi
+
+Language and ABI adapters for `monero-rust`.
+
+This repository currently preserves the API used by the Monero Flutter extension on native
+and WebAssembly targets. Its long-term stable boundary is a small versioned command/event
+dispatcher with explicit host ports for RPC, storage, and hardware integrations. The current
+signal API and future wallet2-compatible APIs are compatibility facades over that boundary.
+
+The typed Monero implementation belongs in the adjacent `monero-rust` repository. Application
+UI and browser-extension behavior belong in `monero-extension`.
+
+## Current source layout
+
+- `native/monero_wasm`: existing native C and WebAssembly signal runtime
+- `native/codegen`: generator for the Rust/Dart signal surface
+- `lib/src/ffi`: existing Dart signal facade
+- `web/pkg/monero_wasm_worker.js`: Web Worker transport for the WASM runtime
+
+The extraction preserved the source history from `monero-extension`. Reorganization behind the
+compatibility surface will happen incrementally so existing Flutter consumers remain usable.
+
+## Development
+
+The repositories are expected to be adjacent during development:
+
+```text
+workspace/
+  monero-rust/
+  monero-ffi/
+  monero-cli/
+```
+
+Run the Rust tests with:
+
+```sh
+cargo test --workspace
+cd native/codegen && cargo test
+```

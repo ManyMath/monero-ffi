@@ -1,7 +1,7 @@
 //! Checks on `signals/mod.rs` that the two compilers between it and the browser cannot make.
 //!
 //! The signal surface is one contract split across two languages. Each half compiles on its
-//! own, so a change that breaks only the agreement between them produces no error anywhere —
+//! own, so a change that breaks only the agreement between them produces no error anywhere -
 //! it produces a `TypeError` inside a Web Worker, once, when the user hits that feature. This
 //! is where the halves are held next to each other, so it is where such a change has to be
 //! caught.
@@ -13,14 +13,14 @@ use crate::model::{Direction, RustType, SignalClass};
 
 /// Reject serde attributes that let Rust omit a key the generated Dart insists on.
 ///
-/// `fromJson` casts a required field straight out of the map — `(json['outputs'] as List)` —
+/// `fromJson` casts a required field straight out of the map - `(json['outputs'] as List)` -
 /// so a key Rust decided not to serialise arrives as `null` and throws. That strictness is
-/// right: a response missing a field is a bug, and defaulting it silently would hide it. But
+/// right: a response missing a field is a bug, and defaulting it would hide it. But
 /// it holds only while nothing on the Rust side skips a field, and today nothing does. One
-/// `#[serde(skip_serializing_if = "Vec::is_empty")]` on a response — the ordinary, idiomatic
-/// thing to write — and an empty list becomes a crash in the worker.
+/// `#[serde(skip_serializing_if = "Vec::is_empty")]` on a response - the ordinary, idiomatic
+/// thing to write - and an empty list becomes a crash in the worker.
 ///
-/// So the attribute is refused here, at generation time, where the tier already runs.
+/// So the attribute is rejected here, at generation time, where the tier already runs.
 pub fn check_serialization_skips(signals: &[SignalClass]) -> Result<(), String> {
     let decoded = dart_decoded_structs(signals);
     let mut problems = Vec::new();
@@ -56,12 +56,12 @@ pub fn check_serialization_skips(signals: &[SignalClass]) -> Result<(), String> 
     ))
 }
 
-/// Names of the structs Dart deserialises: the Rust→Dart signals, plus every struct
+/// Names of the structs Dart deserialises: the Rust->Dart signals, plus every struct
 /// reachable from one through a field type.
 ///
 /// A `Shared` sub-struct is decoded by Dart only when a response carries it. One nested
 /// solely in a `Request` travels the other way, is serialised by Dart and decoded by Rust,
-/// and a skip on it is harmless — so reachability is walked rather than assumed.
+/// and a skip on it is harmless - so reachability is walked rather than assumed.
 fn dart_decoded_structs(signals: &[SignalClass]) -> HashSet<String> {
     let by_name: HashMap<&str, &SignalClass> =
         signals.iter().map(|s| (s.name.as_str(), s)).collect();
@@ -219,7 +219,7 @@ mod tests {
         .expect("nothing decodes it on the Dart side");
     }
 
-    /// Guards the premise the strict `fromJson` rests on, against the real file.
+    /// Guards the assumption the strict `fromJson` relies on, against the real file.
     #[test]
     fn the_committed_signals_are_clean() {
         let src = include_str!("../../monero_wasm/src/signals/mod.rs");

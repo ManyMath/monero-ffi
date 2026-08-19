@@ -66,7 +66,7 @@ pub struct StoreOutputs {
     pub daemon_height: u64,
     pub block_hashes: Vec<(u64, String)>,
     /// The value of `wallet::hydration_seq()` when the scan that produced this batch
-    /// started. The actor drops the batch if a wallet has been loaded since — see the
+    /// started. The actor drops the batch if a wallet has been loaded since - see the
     /// HYDRATION_SEQ comment in actors/wallet.rs.
     pub hydration_seq: u64,
 }
@@ -287,8 +287,8 @@ pub struct UpdateOutputKeyImages {
     /// The entries, the ring signature proving each belongs to the output it is paired
     /// with, and the export's offset. All three travel together because the pairing is
     /// positional: the offset says which output entry 0 is about, and only the signature
-    /// can confirm the answer. A partial export — monero-wallet-cli's `export_key_images`
-    /// without `all` — carries a nonzero offset, and applying it from 0 mispairs
+    /// can confirm the answer. A partial export - monero-wallet-cli's `export_key_images`
+    /// without `all` - carries a nonzero offset, and applying it from 0 mispairs
     /// everything.
     pub import: monero_rust::SignedKeyImageImport,
 }

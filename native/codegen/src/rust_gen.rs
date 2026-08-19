@@ -167,7 +167,7 @@ pub fn generate_signal_ids(signals: &[SignalClass]) -> String {
 // Name conversion helpers
 // ---------------------------------------------------------------------------
 
-/// PascalCase → SCREAMING_SNAKE_CASE
+/// PascalCase -> SCREAMING_SNAKE_CASE
 fn pascal_to_screaming_snake(s: &str) -> String {
     pascal_to_snake(s).to_uppercase()
 }

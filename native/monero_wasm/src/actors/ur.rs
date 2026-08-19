@@ -77,7 +77,7 @@ impl UrActor {
 /// an unbounded leak: `send_start_ur_encoder_request` is a wasm-bindgen export, callable
 /// from the page as often and with as long a type as it likes, and nothing frees what it
 /// leaks. The four types this app transfers are known, so resolving to a constant both
-/// removes the leak and refuses a type we would never emit.
+/// removes the leak and rejects a type we would never emit.
 fn resolve_ur_type(requested: &str) -> Option<&'static str> {
     match requested {
         UR_TYPE_UNSIGNED_TX => Some(UR_TYPE_UNSIGNED_TX),
@@ -93,7 +93,7 @@ fn resolve_ur_type(requested: &str) -> Option<&'static str> {
 #[async_trait]
 impl Notifiable<StartUrEncoder> for UrActor {
     async fn notify(&mut self, msg: StartUrEncoder, _ctx: &Context<Self>) {
-        // Resolved before the generation is bumped: a request we refuse must not also
+        // Resolved before the generation is bumped: a request we reject must not also
         // cancel the QR already on screen.
         let Some(ur_type) = resolve_ur_type(&msg.ur_type) else {
             #[cfg(target_arch = "wasm32")]
@@ -172,8 +172,8 @@ impl Notifiable<UrDecodeFrame> for UrActor {
 
                 // The bytes and the type both come out of the transfer that finished, so
                 // this response cannot describe one transfer with the other's data. It
-                // used to take the bytes from the decoder's accumulator — which was never
-                // cleared, so a finished transfer answered for later frames — and the type
+                // used to take the bytes from the decoder's accumulator - which was never
+                // cleared, so a finished transfer answered for later frames - and the type
                 // from whichever URI was in hand.
                 if let Some(done) = progress.completed {
                     UrDecodeCompleteResponse {
