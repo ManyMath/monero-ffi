@@ -13,6 +13,7 @@ UI and browser-extension behavior belong in `monero-extension`.
 ## Current source layout
 
 - `native/monero_wasm`: existing native C and WebAssembly signal runtime
+- `native/monero_ffi_protocol`: versioned CBOR envelopes and host-port identifiers
 - `native/codegen`: generator for the Rust/Dart signal surface
 - `lib/src/ffi`: existing Dart signal facade
 - `lib/monero_ffi.dart`: platform-neutral Dart package entry point

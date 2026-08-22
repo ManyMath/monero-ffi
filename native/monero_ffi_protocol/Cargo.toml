@@ -1,0 +1,9 @@
+[package]
+name = "monero-ffi-protocol"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Versioned wire protocol for monero-ffi language adapters"
+
+[dependencies]
+minicbor = { version = "0.19", features = ["std"] }

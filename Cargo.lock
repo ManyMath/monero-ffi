@@ -1425,6 +1425,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "monero-ffi-protocol"
+version = "0.1.0"
+dependencies = [
+ "minicbor",
+]
+
+[[package]]
 name = "monero-interface"
 version = "0.1.0"
 source = "git+https://github.com/monero-oxide/monero-oxide?rev=946ec5f00ff071b129758ee8cba5528539fccfe4#946ec5f00ff071b129758ee8cba5528539fccfe4"
