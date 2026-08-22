@@ -1,0 +1,13 @@
+name: monero_ffi
+description: Dart and native ABI adapters for monero-rust.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  web: ^1.1.1
+
+dev_dependencies:
+  test: ^1.26.3

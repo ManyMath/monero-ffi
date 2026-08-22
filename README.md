@@ -15,6 +15,8 @@ UI and browser-extension behavior belong in `monero-extension`.
 - `native/monero_wasm`: existing native C and WebAssembly signal runtime
 - `native/codegen`: generator for the Rust/Dart signal surface
 - `lib/src/ffi`: existing Dart signal facade
+- `lib/monero_ffi.dart`: platform-neutral Dart package entry point
+- `lib/monero_ffi_web.dart`: Web Worker transport entry point
 - `web/pkg/monero_wasm_worker.js`: Web Worker transport for the WASM runtime
 
 The extraction preserved the source history from `monero-extension`. Reorganization behind the
@@ -36,4 +38,5 @@ Run the Rust tests with:
 ```sh
 cargo test --workspace
 cd native/codegen && cargo test
+cd ../.. && dart pub get && dart test
 ```

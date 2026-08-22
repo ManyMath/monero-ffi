@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:test/test.dart';
-import 'package:monero_extension/src/ffi/signal_types.dart';
+import 'package:monero_ffi/monero_ffi.dart';
 
 void main() {
   // -----------------------------------------------------------------------
