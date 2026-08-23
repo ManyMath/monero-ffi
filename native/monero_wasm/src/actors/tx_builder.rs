@@ -1059,7 +1059,7 @@ impl Notifiable<CreateUnsignedTx> for TxBuilderActor {
                             return;
                         }
 
-                        match monero_rust::tx_builder::create_unsigned_transaction(
+                        match crate::core_rpc::create_unsigned_transaction(
                             &node_url,
                             &view_key_hex,
                             &pub_spend_key_hex,

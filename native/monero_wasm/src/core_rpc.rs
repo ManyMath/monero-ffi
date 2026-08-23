@@ -289,3 +289,45 @@ pub(crate) async fn broadcast_transaction(
         monero_rust::native::broadcast_transaction_with_rpc(&rpc, tx_blob_hex, do_not_relay).await
     }
 }
+
+pub(crate) async fn create_unsigned_transaction(
+    node_url: &str,
+    view_key_hex: &str,
+    pub_spend_key_hex: &str,
+    network: &str,
+    stored_outputs: Vec<monero_rust::native::StoredOutputData>,
+    recipients: &[(String, u64)],
+    max_fee_per_weight: Option<u64>,
+) -> Result<monero_rust::native::UnsignedTransactionResult, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::native::create_unsigned_transaction(
+            node_url,
+            view_key_hex,
+            pub_spend_key_hex,
+            network,
+            stored_outputs,
+            recipients,
+            max_fee_per_weight,
+        )
+        .await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        monero_rust::native::create_unsigned_transaction_with_rpc(
+            &rpc,
+            view_key_hex,
+            pub_spend_key_hex,
+            network,
+            stored_outputs,
+            recipients,
+            max_fee_per_weight,
+        )
+        .await
+    }
+}
