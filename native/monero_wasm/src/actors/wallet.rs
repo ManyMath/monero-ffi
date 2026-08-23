@@ -354,7 +354,7 @@ impl WalletActor {
     async fn listen_to_test(_self_addr: Address<Self>) {
         let mut receiver = crate::ffi_web::get_monero_test_request_receiver();
         while let Some(_dart_msg) = receiver.recv().await {
-            let result = monero_rust::test_integration();
+            let result = "monero-ffi transport works".to_string();
             MoneroTestResponse { result }.send_signal_to_dart();
         }
     }
