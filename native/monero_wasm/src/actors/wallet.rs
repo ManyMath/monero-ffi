@@ -861,7 +861,7 @@ impl WalletActor {
                 request.accounts_to_scan.as_deref(),
             );
 
-            match monero_rust::scan_block_for_outputs_with_url_and_lookahead(
+            match crate::core_rpc::scan_block_for_outputs_with_url_and_lookahead(
                 &request.node_url,
                 request.block_height,
                 &seed,
@@ -1232,7 +1232,7 @@ impl WalletActor {
                     })
                     .collect();
 
-                match monero_rust::scan_block_multi_wallet_with_url(
+                match crate::core_rpc::scan_block_multi_wallet_with_url(
                     &request.node_url,
                     request.block_height,
                     wallet_configs,

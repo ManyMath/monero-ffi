@@ -82,3 +82,63 @@ pub(crate) async fn fetch_blocks_batch_with_history_url(
         monero_rust::fetch_blocks_batch_with_history(&rpc, start_height, known_hashes, prune).await
     }
 }
+
+pub(crate) async fn scan_block_for_outputs_with_url_and_lookahead(
+    node_url: &str,
+    block_height: u64,
+    mnemonic: &str,
+    network: &str,
+    lookahead: monero_rust::Lookahead,
+    passphrase: &str,
+) -> Result<monero_rust::BlockScanResult, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::scan_block_for_outputs_with_url_and_lookahead(
+            node_url,
+            block_height,
+            mnemonic,
+            network,
+            lookahead,
+            passphrase,
+        )
+        .await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        monero_rust::error_codes::validate_network(network).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        monero_rust::scanner::scan_block_for_outputs_with_lookahead(
+            &rpc,
+            block_height,
+            mnemonic,
+            network,
+            lookahead,
+            passphrase,
+        )
+        .await
+    }
+}
+
+pub(crate) async fn scan_block_multi_wallet_with_url(
+    node_url: &str,
+    block_height: u64,
+    wallets: Vec<monero_rust::WalletScanConfig>,
+) -> Result<monero_rust::MultiWalletScanResult, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::scan_block_multi_wallet_with_url(node_url, block_height, wallets).await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        monero_rust::scan_block_multi_wallet_wasm(&rpc, block_height, wallets).await
+    }
+}
