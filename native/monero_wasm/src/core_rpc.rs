@@ -142,3 +142,52 @@ pub(crate) async fn scan_block_multi_wallet_with_url(
         monero_rust::scan_block_multi_wallet_wasm(&rpc, block_height, wallets).await
     }
 }
+
+pub(crate) async fn scan_mempool_for_outputs_with_account_lookahead(
+    node_url: &str,
+    mnemonic: &str,
+    network: &str,
+    account_lookahead: u32,
+    subaddress_lookahead: u32,
+    accounts_to_scan: Option<&[u32]>,
+    passphrase: &str,
+) -> Result<monero_rust::MempoolScanResult, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::scan_mempool_for_outputs_with_account_lookahead(
+            node_url,
+            mnemonic,
+            network,
+            account_lookahead,
+            subaddress_lookahead,
+            accounts_to_scan,
+            passphrase,
+        )
+        .await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        let lookahead = monero_rust::Lookahead {
+            account: account_lookahead,
+            subaddress: if subaddress_lookahead > 0 {
+                subaddress_lookahead
+            } else {
+                monero_rust::DEFAULT_LOOKAHEAD.subaddress
+            },
+        };
+        monero_rust::scan_mempool(
+            &rpc,
+            mnemonic,
+            network,
+            lookahead,
+            accounts_to_scan,
+            passphrase,
+        )
+        .await
+    }
+}

@@ -1105,7 +1105,7 @@ impl WalletActor {
             let mut addr = self_addr.clone();
 
             spawn_local(async move {
-                match monero_rust::scan_mempool_for_outputs_with_account_lookahead(
+                match crate::core_rpc::scan_mempool_for_outputs_with_account_lookahead(
                     &request.node_url,
                     &resolved_seed,
                     &request.network,
