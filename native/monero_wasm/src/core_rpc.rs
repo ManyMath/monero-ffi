@@ -191,3 +191,42 @@ pub(crate) async fn scan_mempool_for_outputs_with_account_lookahead(
         .await
     }
 }
+
+pub(crate) async fn create_transaction(
+    node_url: &str,
+    seed_phrase: &str,
+    network: &str,
+    stored_outputs: Vec<monero_rust::native::StoredOutputData>,
+    recipients: &[(String, u64)],
+    passphrase: &str,
+) -> Result<monero_rust::native::TransactionResult, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::native::create_transaction(
+            node_url,
+            seed_phrase,
+            network,
+            stored_outputs,
+            recipients,
+            passphrase,
+        )
+        .await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        monero_rust::native::create_transaction_with_rpc(
+            &rpc,
+            seed_phrase,
+            network,
+            stored_outputs,
+            recipients,
+            passphrase,
+        )
+        .await
+    }
+}

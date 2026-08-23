@@ -665,7 +665,7 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
                             recipients
                         };
 
-                        match monero_rust::native::create_transaction(
+                        match crate::core_rpc::create_transaction(
                             &node_url,
                             &seed,
                             &network,
