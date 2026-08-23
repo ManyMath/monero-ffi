@@ -547,7 +547,7 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
 
                             let spent_hashes = prepared.spent_output_keys;
 
-                            match monero_rust::tx_builder::native::sweep_all(
+                            match crate::core_rpc::sweep_all(
                                 &node_url,
                                 &seed,
                                 &network,
@@ -715,7 +715,7 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
                                     && final_recipients.len() == 1 =>
                             {
                                 // Redirect single-recipient dust change to sweep_all
-                                match monero_rust::tx_builder::native::sweep_all(
+                                match crate::core_rpc::sweep_all(
                                     &node_url,
                                     &seed,
                                     &network,
@@ -831,7 +831,7 @@ impl Notifiable<SweepAll> for TxBuilderActor {
 
                         let spent_output_hashes = prepared.spent_output_keys;
 
-                        match monero_rust::tx_builder::native::sweep_all(
+                        match crate::core_rpc::sweep_all(
                             &node_url,
                             &seed,
                             &network,

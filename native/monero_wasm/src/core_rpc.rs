@@ -230,3 +230,42 @@ pub(crate) async fn create_transaction(
         .await
     }
 }
+
+pub(crate) async fn sweep_all(
+    node_url: &str,
+    seed_phrase: &str,
+    network: &str,
+    stored_outputs: Vec<monero_rust::native::StoredOutputData>,
+    destination_address: &str,
+    passphrase: &str,
+) -> Result<monero_rust::native::TransactionResult, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::native::sweep_all(
+            node_url,
+            seed_phrase,
+            network,
+            stored_outputs,
+            destination_address,
+            passphrase,
+        )
+        .await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        monero_rust::native::sweep_all_with_rpc(
+            &rpc,
+            seed_phrase,
+            network,
+            stored_outputs,
+            destination_address,
+            passphrase,
+        )
+        .await
+    }
+}
