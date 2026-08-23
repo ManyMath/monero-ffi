@@ -2035,7 +2035,7 @@ impl Notifiable<ContinueScan> for WalletActor {
             // 1. Take from prefetch slot or fetch fresh (with history for reorg detection)
             let fetched = match take_prefetch(scan_gen, batch_start_height) {
                 Some(data) => data,
-                None => match monero_rust::fetch_blocks_batch_with_history_url(
+                None => match crate::core_rpc::fetch_blocks_batch_with_history_url(
                     &node_url,
                     batch_start_height,
                     &block_hash_history,
@@ -2094,7 +2094,7 @@ impl Notifiable<ContinueScan> for WalletActor {
                 let prefetch_url = node_url.clone();
                 spawn_local(async move {
                     if let Ok(data) =
-                        monero_rust::fetch_blocks_batch_with_url(&prefetch_url, next_height, false)
+                        crate::core_rpc::fetch_blocks_batch_with_url(&prefetch_url, next_height, false)
                             .await
                     {
                         store_prefetch(scan_gen, next_height, data);
@@ -2346,7 +2346,7 @@ impl Notifiable<ContinueMultiWalletScan> for WalletActor {
             // 1. Take from prefetch slot or fetch fresh (with history for reorg detection)
             let fetched = match take_prefetch(scan_gen, batch_start_height) {
                 Some(data) => data,
-                None => match monero_rust::fetch_blocks_batch_with_history_url(
+                None => match crate::core_rpc::fetch_blocks_batch_with_history_url(
                     &node_url,
                     batch_start_height,
                     &block_hash_history,
@@ -2391,7 +2391,7 @@ impl Notifiable<ContinueMultiWalletScan> for WalletActor {
                 let prefetch_url = node_url.clone();
                 spawn_local(async move {
                     if let Ok(data) =
-                        monero_rust::fetch_blocks_batch_with_url(&prefetch_url, next_height, false)
+                        crate::core_rpc::fetch_blocks_batch_with_url(&prefetch_url, next_height, false)
                             .await
                     {
                         store_prefetch(scan_gen, next_height, data);

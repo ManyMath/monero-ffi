@@ -35,3 +35,50 @@ pub(crate) async fn is_key_image_spent(
         monero_rust::key_image_spent_status(&rpc, key_images).await
     }
 }
+
+pub(crate) async fn fetch_blocks_batch_with_url(
+    node_url: &str,
+    start_height: u64,
+    prune: bool,
+) -> Result<monero_rust::FetchedBlocks, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::fetch_blocks_batch_with_url(node_url, start_height, prune).await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        monero_rust::fetch_blocks_batch(&rpc, start_height, prune).await
+    }
+}
+
+pub(crate) async fn fetch_blocks_batch_with_history_url(
+    node_url: &str,
+    start_height: u64,
+    known_hashes: &[(u64, String)],
+    prune: bool,
+) -> Result<(monero_rust::FetchedBlocks, u64), String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::fetch_blocks_batch_with_history_url(
+            node_url,
+            start_height,
+            known_hashes,
+            prune,
+        )
+        .await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        monero_rust::fetch_blocks_batch_with_history(&rpc, start_height, known_hashes, prune).await
+    }
+}
