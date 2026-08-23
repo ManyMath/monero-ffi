@@ -365,9 +365,26 @@ impl WalletActor {
         let mut receiver = crate::ffi_web::get_generate_seed_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
             let request = dart_msg;
-            match monero_rust::generate_seed(&request.seed_type) {
+            let format = match crate::seed_format::parse_seed_format(&request.seed_type) {
+                Ok(format) => format,
+                Err(e) => {
+                    let err = ErrorResponse::from_string(&e);
+                    SeedGeneratedResponse {
+                        seed: String::new(),
+                        success: false,
+                        error: Some(err.message),
+                        error_code: Some(err.code),
+                        error_hint: err.hint,
+                        error_transient: Some(err.transient),
+                        restore_height: None,
+                    }
+                    .send_signal_to_dart();
+                    continue;
+                }
+            };
+            match monero_rust::generate_seed(format) {
                 Ok(seed) => {
-                    let restore_height = if request.seed_type == "polyseed" {
+                    let restore_height = if format == monero_rust::SeedFormat::Polyseed {
                         monero_rust::seed_birthday(&seed)
                     } else {
                         None

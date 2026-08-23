@@ -2,7 +2,9 @@
 //!
 //! Bindings to test Monero functions from JS.
 
-use monero_rust::{derive_address, derive_keys, generate_seed, seed_birthday, validate_seed};
+use monero_rust::{
+    derive_address, derive_keys, generate_seed, seed_birthday, validate_seed, SeedFormat,
+};
 use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
 
@@ -14,13 +16,16 @@ impl TestApi {
     /// Generate seed (classic 25-word by default)
     #[wasm_bindgen]
     pub fn generate_seed() -> Result<String, JsValue> {
-        generate_seed("classic").map_err(|e| JsValue::from_str(&format!("seed gen failed: {}", e)))
+        generate_seed(SeedFormat::Classic)
+            .map_err(|e| JsValue::from_str(&format!("seed gen failed: {}", e)))
     }
 
     /// Generate seed with specified type ("classic" or "polyseed")
     #[wasm_bindgen]
     pub fn generate_seed_typed(seed_type: &str) -> Result<String, JsValue> {
-        generate_seed(seed_type).map_err(|e| JsValue::from_str(&format!("seed gen failed: {}", e)))
+        let format = crate::seed_format::parse_seed_format(seed_type)
+            .map_err(|e| JsValue::from_str(&format!("seed gen failed: {e}")))?;
+        generate_seed(format).map_err(|e| JsValue::from_str(&format!("seed gen failed: {}", e)))
     }
 
     // Derive address from seed
@@ -52,7 +57,7 @@ impl TestApi {
     /// Test polyseed generation directly (for debugging)
     #[wasm_bindgen]
     pub fn test_polyseed() -> Result<String, JsValue> {
-        generate_seed("polyseed")
+        generate_seed(SeedFormat::Polyseed)
             .map_err(|e| JsValue::from_str(&format!("polyseed test failed: {}", e)))
     }
 

@@ -6,6 +6,7 @@ pub mod browser_impl;
 pub mod ffi_web;
 pub(crate) mod logging;
 mod messages;
+mod seed_format;
 #[cfg(target_arch = "wasm32")]
 pub mod rpc_adapter;
 #[allow(dead_code)]

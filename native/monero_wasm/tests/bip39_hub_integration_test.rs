@@ -18,7 +18,7 @@ fn test_wasm_seed_birthday_with_bip39() {
 
 #[test]
 fn test_wasm_seed_birthday_with_polyseed() {
-    let polyseed = monero_rust::generate_seed("polyseed").unwrap();
+    let polyseed = monero_rust::generate_seed(monero_rust::SeedFormat::Polyseed).unwrap();
     let birthday = monero_rust::seed_birthday(&polyseed);
     // Polyseeds encode a birthday timestamp
     assert!(birthday.is_some());
@@ -27,7 +27,7 @@ fn test_wasm_seed_birthday_with_polyseed() {
 
 #[test]
 fn test_wasm_seed_birthday_with_classic() {
-    let classic = monero_rust::generate_seed("classic").unwrap();
+    let classic = monero_rust::generate_seed(monero_rust::SeedFormat::Classic).unwrap();
     let birthday = monero_rust::seed_birthday(&classic);
     // Classic seeds don't encode a birthday
     assert_eq!(birthday, None);
@@ -35,7 +35,7 @@ fn test_wasm_seed_birthday_with_classic() {
 
 #[test]
 fn test_wasm_generate_bip39_then_birthday() {
-    let seed = monero_rust::generate_seed("bip39").unwrap();
+    let seed = monero_rust::generate_seed(monero_rust::SeedFormat::Bip39).unwrap();
     assert_eq!(seed.split_whitespace().count(), 12);
     // Only polyseed encodes a birthday, but BIP39 should not panic
     let birthday = monero_rust::seed_birthday(&seed);
@@ -44,7 +44,7 @@ fn test_wasm_generate_bip39_then_birthday() {
 
 #[test]
 fn test_wasm_generate_polyseed_then_birthday() {
-    let seed = monero_rust::generate_seed("polyseed").unwrap();
+    let seed = monero_rust::generate_seed(monero_rust::SeedFormat::Polyseed).unwrap();
     assert_eq!(seed.split_whitespace().count(), 16);
     let birthday = monero_rust::seed_birthday(&seed);
     assert!(birthday.is_some());
@@ -111,10 +111,10 @@ fn test_wasm_resolve_seed_all_types() {
     // BIP39
     monero_rust::resolve_seed(BIP39_SEED).unwrap();
     // Classic
-    let classic = monero_rust::generate_seed("classic").unwrap();
+    let classic = monero_rust::generate_seed(monero_rust::SeedFormat::Classic).unwrap();
     monero_rust::resolve_seed(&classic).unwrap();
     // Polyseed
-    let polyseed = monero_rust::generate_seed("polyseed").unwrap();
+    let polyseed = monero_rust::generate_seed(monero_rust::SeedFormat::Polyseed).unwrap();
     monero_rust::resolve_seed(&polyseed).unwrap();
 }
 
