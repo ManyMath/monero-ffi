@@ -905,7 +905,7 @@ impl Notifiable<BroadcastTransaction> for TxBuilderActor {
 
         // Spawn in local task to avoid Send requirements
         spawn_local(async move {
-            match monero_rust::native::broadcast_transaction(
+            match crate::core_rpc::broadcast_transaction(
                 &msg.node_url,
                 &msg.tx_blob,
                 do_not_relay,

@@ -269,3 +269,23 @@ pub(crate) async fn sweep_all(
         .await
     }
 }
+
+pub(crate) async fn broadcast_transaction(
+    node_url: &str,
+    tx_blob_hex: &str,
+    do_not_relay: bool,
+) -> Result<(), String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        monero_rust::native::broadcast_transaction(node_url, tx_blob_hex, do_not_relay).await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
+            node_url.to_string(),
+        ));
+        monero_rust::native::broadcast_transaction_with_rpc(&rpc, tx_blob_hex, do_not_relay).await
+    }
+}
