@@ -37,7 +37,5 @@ workspace/
 Run the Rust tests with:
 
 ```sh
-cargo test --workspace
-cd native/codegen && cargo test
-cd ../.. && dart pub get && dart test
+scripts/test-all.sh
 ```
