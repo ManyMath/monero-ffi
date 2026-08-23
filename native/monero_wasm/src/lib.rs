@@ -1,6 +1,7 @@
 //! WASM entry point for the Monero wallet extension.
 
 mod actors;
+mod core_rpc;
 #[cfg(target_arch = "wasm32")]
 pub mod browser_impl;
 pub mod ffi_web;

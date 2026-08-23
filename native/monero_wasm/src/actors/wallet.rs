@@ -949,7 +949,7 @@ impl WalletActor {
         while let Some(dart_msg) = receiver.recv().await {
             let request = dart_msg;
 
-            match monero_rust::get_daemon_height(&request.node_url).await {
+            match crate::core_rpc::get_daemon_height(&request.node_url).await {
                 Ok(height) => {
                     let _ = self_addr.notify(SetDaemonHeight { height }).await;
 
@@ -1349,7 +1349,7 @@ impl WalletActor {
             spawn_local(async move {
                 bump_generation();
 
-                match monero_rust::get_daemon_height(&node_url).await {
+                match crate::core_rpc::get_daemon_height(&node_url).await {
                     Ok(daemon_height) => {
                         // Initialize multi-wallet scanning state
                         let _ = self_addr_clone
@@ -1897,7 +1897,7 @@ impl Notifiable<StartContinuousScan> for WalletActor {
 
             bump_generation();
 
-            match monero_rust::get_daemon_height(&node_url).await {
+            match crate::core_rpc::get_daemon_height(&node_url).await {
                 Ok(daemon_height) => {
                     // Initialize scanning state
                     let _ = self_addr

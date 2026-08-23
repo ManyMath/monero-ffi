@@ -484,7 +484,7 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
 
                     spawn_local(async move {
                         // Query fresh daemon height to avoid stale core_state
-                        let daemon_height = match monero_rust::get_daemon_height(&node_url).await {
+                        let daemon_height = match crate::core_rpc::get_daemon_height(&node_url).await {
                             Ok(h) => {
                                 log::info!(
                                     "[BuildTx] Fresh daemon height: {}, stored: {}",
@@ -806,7 +806,7 @@ impl Notifiable<SweepAll> for TxBuilderActor {
 
                     spawn_local(async move {
                         // Query fresh daemon height to avoid stale core_state
-                        let daemon_height = match monero_rust::get_daemon_height(&node_url).await {
+                        let daemon_height = match crate::core_rpc::get_daemon_height(&node_url).await {
                             Ok(h) => h.max(stored_daemon_height),
                             Err(_) => stored_daemon_height,
                         };
@@ -1003,7 +1003,7 @@ impl Notifiable<CreateUnsignedTx> for TxBuilderActor {
 
                     spawn_local(async move {
                         let fresh_daemon_height =
-                            match monero_rust::get_daemon_height(&node_url).await {
+                            match crate::core_rpc::get_daemon_height(&node_url).await {
                                 Ok(h) => h.max(daemon_height),
                                 Err(_) => daemon_height,
                             };
@@ -1926,7 +1926,7 @@ impl Notifiable<ImportKeyImages> for TxBuilderActor {
 
             spawn_local(async move {
                 let spent_key_images =
-                    match monero_rust::is_key_image_spent(&node_url, &non_empty_kis).await {
+                    match crate::core_rpc::is_key_image_spent(&node_url, &non_empty_kis).await {
                         Ok(statuses) => non_empty_kis
                             .iter()
                             .zip(statuses.iter())
