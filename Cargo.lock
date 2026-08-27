@@ -1557,7 +1557,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "ur",
- "web-sys",
  "zeroize",
 ]
 
