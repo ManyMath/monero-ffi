@@ -7,7 +7,7 @@ use crate::signals::{
 use async_trait::async_trait;
 use messages::prelude::{Actor, Address, Context, Notifiable};
 use monero_rust::encryption;
-use monero_rust::error_codes::{ERR_DECRYPTION, ERR_ENCRYPTION, ERR_INVALID_KEY, ErrorResponse};
+use crate::error_codes::{ERR_DECRYPTION, ERR_ENCRYPTION, ERR_INVALID_KEY, ErrorResponse};
 
 pub struct StorageActor {}
 

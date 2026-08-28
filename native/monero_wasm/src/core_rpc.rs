@@ -9,7 +9,7 @@ pub(crate) async fn get_daemon_height(node_url: &str) -> Result<u64, String> {
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -28,7 +28,7 @@ pub(crate) async fn is_key_image_spent(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -48,7 +48,7 @@ pub(crate) async fn fetch_blocks_batch_with_url(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -75,7 +75,7 @@ pub(crate) async fn fetch_blocks_batch_with_history_url(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -106,8 +106,8 @@ pub(crate) async fn scan_block_for_outputs_with_url_and_lookahead(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
-        monero_rust::error_codes::validate_network(network).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_network(network).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -135,7 +135,7 @@ pub(crate) async fn scan_block_multi_wallet_with_url(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -168,7 +168,7 @@ pub(crate) async fn scan_mempool_for_outputs_with_account_lookahead(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -215,7 +215,7 @@ pub(crate) async fn create_transaction(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -254,7 +254,7 @@ pub(crate) async fn sweep_all(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -282,7 +282,7 @@ pub(crate) async fn broadcast_transaction(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -315,7 +315,7 @@ pub(crate) async fn create_unsigned_transaction(
 
     #[cfg(target_arch = "wasm32")]
     {
-        monero_rust::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
+        crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));

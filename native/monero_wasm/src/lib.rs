@@ -2,6 +2,7 @@
 
 mod actors;
 mod core_rpc;
+mod error_codes;
 #[cfg(target_arch = "wasm32")]
 pub mod browser_impl;
 pub mod ffi_web;

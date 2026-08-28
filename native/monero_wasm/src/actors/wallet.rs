@@ -360,7 +360,7 @@ impl WalletActor {
     }
 
     async fn listen_to_generate_seed(_self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_generate_seed_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
@@ -418,7 +418,7 @@ impl WalletActor {
     }
 
     async fn listen_to_get_seed_birthday(_self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_get_seed_birthday_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
@@ -474,7 +474,7 @@ impl WalletActor {
                     .send_signal_to_dart();
                 }
                 Err(e) => {
-                    let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                    let err = crate::error_codes::ErrorResponse::from_string(&e);
                     BlockHeightFromTimestampResponse {
                         block_height: 0,
                         success: false,
@@ -617,7 +617,7 @@ impl WalletActor {
     }
 
     async fn listen_to_derive_address(_self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_derive_address_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
@@ -671,7 +671,7 @@ impl WalletActor {
     }
 
     async fn listen_to_derive_subaddress(_self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_derive_subaddress_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
@@ -731,7 +731,7 @@ impl WalletActor {
     }
 
     async fn listen_to_derive_keys(_self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_derive_keys_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
@@ -797,13 +797,13 @@ impl WalletActor {
     }
 
     async fn listen_to_scan_block(mut self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_scan_block_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
             let request = dart_msg;
 
-            if let Err(err) = monero_rust::error_codes::Network::parse(&request.network) {
+            if let Err(err) = crate::error_codes::Network::parse(&request.network) {
                 BlockScanResponse {
                     success: false,
                     error: Some(err.message.clone()),
@@ -964,7 +964,7 @@ impl WalletActor {
                     .send_signal_to_dart();
                 }
                 Err(e) => {
-                    let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                    let err = crate::error_codes::ErrorResponse::from_string(&e);
                     DaemonHeightResponse {
                         success: false,
                         error: Some(e),
@@ -980,13 +980,13 @@ impl WalletActor {
     }
 
     async fn listen_to_start_continuous_scan(mut self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_start_continuous_scan_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
             let request = dart_msg;
 
-            if let Err(err) = monero_rust::error_codes::Network::parse(&request.network) {
+            if let Err(err) = crate::error_codes::Network::parse(&request.network) {
                 BlockScanResponse {
                     success: false,
                     error: Some(err.message.clone()),
@@ -1057,13 +1057,13 @@ impl WalletActor {
     }
 
     async fn listen_to_mempool_scan(self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_mempool_scan_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
             let request = dart_msg;
 
-            if let Err(err) = monero_rust::error_codes::Network::parse(&request.network) {
+            if let Err(err) = crate::error_codes::Network::parse(&request.network) {
                 MempoolScanResponse {
                     success: false,
                     error: Some(err.message.clone()),
@@ -1157,7 +1157,7 @@ impl WalletActor {
                         }
                     }
                     Err(e) => {
-                        let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                        let err = crate::error_codes::ErrorResponse::from_string(&e);
                         MempoolScanResponse {
                             success: false,
                             error: Some(e),
@@ -1194,7 +1194,7 @@ impl WalletActor {
                 }
             }
             if let Some(e) = resolve_err {
-                let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                let err = crate::error_codes::ErrorResponse::from_string(&e);
                 MultiWalletScanResponse {
                     success: false,
                     error: Some(e),
@@ -1270,7 +1270,7 @@ impl WalletActor {
                         .send_signal_to_dart();
                     }
                     Err(e) => {
-                        let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                        let err = crate::error_codes::ErrorResponse::from_string(&e);
                         MultiWalletScanResponse {
                             success: false,
                             error: Some(e),
@@ -1320,7 +1320,7 @@ impl WalletActor {
             }
             if let Some(e) = resolve_err {
                 let msg = format!("Failed to resolve BIP39 seed: {}", e);
-                let err = monero_rust::error_codes::ErrorResponse::from_string(&msg);
+                let err = crate::error_codes::ErrorResponse::from_string(&msg);
                 MultiWalletScanResponse {
                     success: false,
                     error: Some(msg),
@@ -1376,7 +1376,7 @@ impl WalletActor {
                     }
                     Err(e) => {
                         let msg = format!("Failed to get daemon height: {}", e);
-                        let err = monero_rust::error_codes::ErrorResponse::from_string(&msg);
+                        let err = crate::error_codes::ErrorResponse::from_string(&msg);
                         MultiWalletScanResponse {
                             success: false,
                             error: Some(msg),
@@ -1439,7 +1439,7 @@ impl WalletActor {
     }
 
     async fn listen_to_convert_bip39_to_legacy(_self_addr: Address<Self>) {
-        use monero_rust::error_codes::ErrorResponse;
+        use crate::error_codes::ErrorResponse;
 
         let mut receiver = crate::ffi_web::get_convert_bip39_to_legacy_request_receiver();
         while let Some(dart_msg) = receiver.recv().await {
@@ -1597,7 +1597,7 @@ impl Notifiable<GetPendingStateMsg> for WalletActor {
                 PendingStateResponse {
                     success: false,
                     error: Some(format!("Failed to serialize pending state: {}", e)),
-                    error_code: Some(monero_rust::error_codes::ERR_SERIALIZATION),
+                    error_code: Some(crate::error_codes::ERR_SERIALIZATION),
                     error_hint: None,
                     error_transient: Some(false),
                     pending_state_json: None,
@@ -1628,7 +1628,7 @@ impl Notifiable<GetBlockHashesMsg> for WalletActor {
                 BlockHashesResponse {
                     success: false,
                     error: Some(format!("Failed to serialize block hashes: {}", e)),
-                    error_code: Some(monero_rust::error_codes::ERR_SERIALIZATION),
+                    error_code: Some(crate::error_codes::ERR_SERIALIZATION),
                     error_hint: None,
                     error_transient: Some(false),
                     block_hashes_json: None,
@@ -1849,7 +1849,7 @@ impl Notifiable<StartContinuousScan> for WalletActor {
 
         spawn_local(async move {
             // Validate URL for network BEFORE bump_generation (per RPCS-01)
-            let parsed_network = match monero_rust::error_codes::Network::parse(&network) {
+            let parsed_network = match crate::error_codes::Network::parse(&network) {
                 Ok(n) => n,
                 Err(err) => {
                     BlockScanResponse {
@@ -1871,7 +1871,7 @@ impl Notifiable<StartContinuousScan> for WalletActor {
                     return;
                 }
             };
-            if let Err(err) = monero_rust::error_codes::validate_node_url_for_network(
+            if let Err(err) = crate::error_codes::validate_node_url_for_network(
                 &node_url,
                 parsed_network,
                 allow_insecure_http,
@@ -1931,7 +1931,7 @@ impl Notifiable<StartContinuousScan> for WalletActor {
                     let msg = format!("Failed to get daemon height: {}", e);
                     log::error!("[StartContinuousScan] {}", msg);
 
-                    let err = monero_rust::error_codes::ErrorResponse::from_string(&msg);
+                    let err = crate::error_codes::ErrorResponse::from_string(&msg);
                     BlockScanResponse {
                         success: false,
                         error: Some(msg),
@@ -2051,7 +2051,7 @@ impl Notifiable<ContinueScan> for WalletActor {
                             e
                         );
 
-                        let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                        let err = crate::error_codes::ErrorResponse::from_string(&e);
                         BlockScanResponse {
                             success: false,
                             error: Some(e),
@@ -2262,7 +2262,7 @@ impl Notifiable<ContinueScan> for WalletActor {
                         e
                     );
 
-                    let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                    let err = crate::error_codes::ErrorResponse::from_string(&e);
                     BlockScanResponse {
                         success: false,
                         error: Some(e),
@@ -2356,7 +2356,7 @@ impl Notifiable<ContinueMultiWalletScan> for WalletActor {
                 {
                     Ok((data, _actual_start)) => data,
                     Err(e) => {
-                        let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                        let err = crate::error_codes::ErrorResponse::from_string(&e);
                         MultiWalletScanResponse {
                             success: false,
                             error: Some(e),
@@ -2581,7 +2581,7 @@ impl Notifiable<ContinueMultiWalletScan> for WalletActor {
                     }
                 }
                 Err(e) => {
-                    let err = monero_rust::error_codes::ErrorResponse::from_string(&e);
+                    let err = crate::error_codes::ErrorResponse::from_string(&e);
                     MultiWalletScanResponse {
                         success: false,
                         error: Some(e),

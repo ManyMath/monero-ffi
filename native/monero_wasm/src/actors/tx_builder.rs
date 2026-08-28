@@ -3,7 +3,7 @@ use crate::messages::*;
 use crate::signals::*;
 use async_trait::async_trait;
 use messages::prelude::{Actor, Address, Context, Notifiable};
-use monero_rust::error_codes::ErrorResponse;
+use crate::error_codes::ErrorResponse;
 use tokio::task::JoinSet;
 use tokio_with_wasm::alias as tokio;
 
@@ -959,9 +959,9 @@ impl Notifiable<BroadcastTransaction> for TxBuilderActor {
                     let err = ErrorResponse::from_string(&error_str);
                     let error_transient = Some(is_retryable || err.transient);
                     let error_code = if is_double_spend {
-                        Some(monero_rust::error_codes::ERR_TX_DOUBLE_SPEND)
+                        Some(crate::error_codes::ERR_TX_DOUBLE_SPEND)
                     } else if is_retryable {
-                        Some(monero_rust::error_codes::ERR_RPC_CONNECTION)
+                        Some(crate::error_codes::ERR_RPC_CONNECTION)
                     } else {
                         Some(err.code)
                     };
