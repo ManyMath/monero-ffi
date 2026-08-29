@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
-use monero_rust::monero_backend::rpc::{RpcConnection, RpcError};
+use monero_rust::monero_rpc::{RpcConnection, RpcError};
 
 #[derive(Clone, Debug)]
 pub struct WasmRpcAdapter {

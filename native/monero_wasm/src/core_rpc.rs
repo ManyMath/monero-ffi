@@ -1,5 +1,5 @@
 #[cfg(target_arch = "wasm32")]
-use monero_rust::monero_backend::rpc::Rpc;
+use monero_rust::monero_rpc::Rpc;
 
 pub(crate) async fn get_daemon_height(node_url: &str) -> Result<u64, String> {
     #[cfg(not(target_arch = "wasm32"))]
