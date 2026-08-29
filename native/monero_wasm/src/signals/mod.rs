@@ -1,5 +1,15 @@
 use serde::{Deserialize, Serialize};
 
+const PICONERO_PER_XMR: u64 = 1_000_000_000_000;
+
+pub(crate) fn format_xmr_amount(amount: u64) -> String {
+    format!(
+        "{}.{:012}",
+        amount / PICONERO_PER_XMR,
+        amount % PICONERO_PER_XMR
+    )
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Recipient {
     pub address: String,
@@ -271,7 +281,7 @@ impl From<monero_rust::WalletOutput> for OwnedOutput {
             tx_hash: o.tx_hash,
             output_index: o.output_index,
             amount: o.amount,
-            amount_xmr: o.amount_xmr,
+            amount_xmr: format_xmr_amount(o.amount),
             key: o.key,
             key_offset: o.key_offset,
             commitment_mask: o.commitment_mask,
@@ -294,7 +304,7 @@ impl From<&monero_rust::WalletOutput> for OwnedOutput {
             tx_hash: o.tx_hash.clone(),
             output_index: o.output_index,
             amount: o.amount,
-            amount_xmr: o.amount_xmr.clone(),
+            amount_xmr: format_xmr_amount(o.amount),
             key: o.key.clone(),
             key_offset: o.key_offset.clone(),
             commitment_mask: o.commitment_mask.clone(),
@@ -317,7 +327,6 @@ impl From<OwnedOutput> for monero_rust::WalletOutput {
             tx_hash: o.tx_hash,
             output_index: o.output_index,
             amount: o.amount,
-            amount_xmr: o.amount_xmr,
             key: o.key,
             key_offset: o.key_offset,
             commitment_mask: o.commitment_mask,
@@ -1116,6 +1125,16 @@ pub struct UrDecodeCompleteResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn formats_atomic_amounts_without_floating_point_loss() {
+        assert_eq!(format_xmr_amount(0), "0.000000000000");
+        assert_eq!(format_xmr_amount(1), "0.000000000001");
+        assert_eq!(
+            format_xmr_amount(u64::MAX),
+            "18446744.073709551615"
+        );
+    }
 
     fn round_trip<T>(value: &T) -> serde_json::Value
     where

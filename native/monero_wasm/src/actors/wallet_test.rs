@@ -19,7 +19,6 @@ fn make_test_output(
         tx_hash: tx_hash.to_string(),
         output_index,
         amount,
-        amount_xmr: format!("{:.12}", amount as f64 / 1_000_000_000_000.0),
         key: format!("key_{}", tx_hash),
         key_offset: format!("offset_{}", tx_hash),
         commitment_mask: format!("mask_{}", tx_hash),
