@@ -69,11 +69,11 @@ fn test_wasm_derive_subaddress_with_bip39() {
 #[test]
 fn test_wasm_derive_keys_with_bip39() {
     let keys = monero_rust::derive_keys(BIP39_SEED, "mainnet", "").unwrap();
-    assert_eq!(keys.address, BIP39_EXPECTED_ADDRESS);
-    assert!(!keys.secret_spend_key.is_empty());
-    assert!(!keys.secret_view_key.is_empty());
-    assert!(!keys.public_spend_key.is_empty());
-    assert!(!keys.public_view_key.is_empty());
+    assert_eq!(keys.address.to_string(), BIP39_EXPECTED_ADDRESS);
+    assert!(keys.secret_spend_key.is_some());
+    assert_ne!(*keys.secret_view_key, [0; 32]);
+    assert_ne!(keys.public_spend_key, [0; 32]);
+    assert_ne!(keys.public_view_key, [0; 32]);
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_wasm_resolve_seed_bip39_consistency() {
     let seed = monero_rust::resolve_seed(BIP39_SEED).unwrap();
     // The resolved seed should produce the same keys as direct derive_keys
     let keys = monero_rust::derive_keys(BIP39_SEED, "mainnet", "").unwrap();
-    assert_eq!(keys.address, BIP39_EXPECTED_ADDRESS);
+    assert_eq!(keys.address.to_string(), BIP39_EXPECTED_ADDRESS);
 }
 
 #[test]
@@ -130,7 +130,7 @@ fn test_wasm_full_bip39_restore_pipeline() {
 
     // 3. Derive keys (wallet initialization)
     let keys = monero_rust::derive_keys(BIP39_SEED, "mainnet", "").unwrap();
-    assert_eq!(keys.address, BIP39_EXPECTED_ADDRESS);
+    assert_eq!(keys.address.to_string(), BIP39_EXPECTED_ADDRESS);
 
     // 4. Derive primary address
     let address = monero_rust::derive_address(BIP39_SEED, "mainnet", "").unwrap();

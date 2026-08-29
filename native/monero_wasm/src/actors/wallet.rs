@@ -763,11 +763,15 @@ impl WalletActor {
             match monero_rust::derive_keys(&resolved, &request.network, &request.passphrase) {
                 Ok(keys) => {
                     KeysDerivedResponse {
-                        address: keys.address.clone(),
-                        secret_spend_key: keys.secret_spend_key.clone(),
-                        secret_view_key: keys.secret_view_key.clone(),
-                        public_spend_key: keys.public_spend_key.clone(),
-                        public_view_key: keys.public_view_key.clone(),
+                        address: keys.address.to_string(),
+                        secret_spend_key: keys
+                            .secret_spend_key
+                            .as_deref()
+                            .map(hex::encode)
+                            .unwrap_or_default(),
+                        secret_view_key: hex::encode(&*keys.secret_view_key),
+                        public_spend_key: hex::encode(keys.public_spend_key),
+                        public_view_key: hex::encode(keys.public_view_key),
                         success: true,
                         error: None,
                         error_code: None,
@@ -2093,9 +2097,12 @@ impl Notifiable<ContinueScan> for WalletActor {
             if next_height < target_height {
                 let prefetch_url = node_url.clone();
                 spawn_local(async move {
-                    if let Ok(data) =
-                        crate::core_rpc::fetch_blocks_batch_with_url(&prefetch_url, next_height, false)
-                            .await
+                    if let Ok(data) = crate::core_rpc::fetch_blocks_batch_with_url(
+                        &prefetch_url,
+                        next_height,
+                        false,
+                    )
+                    .await
                     {
                         store_prefetch(scan_gen, next_height, data);
                     }
@@ -2390,9 +2397,12 @@ impl Notifiable<ContinueMultiWalletScan> for WalletActor {
             if next_height < target_height {
                 let prefetch_url = node_url.clone();
                 spawn_local(async move {
-                    if let Ok(data) =
-                        crate::core_rpc::fetch_blocks_batch_with_url(&prefetch_url, next_height, false)
-                            .await
+                    if let Ok(data) = crate::core_rpc::fetch_blocks_batch_with_url(
+                        &prefetch_url,
+                        next_height,
+                        false,
+                    )
+                    .await
                     {
                         store_prefetch(scan_gen, next_height, data);
                     }
@@ -3023,27 +3033,12 @@ impl WalletActor {
                 let keys = monero_rust::derive_keys(&request.seed, &request.network, "")
                     .map_err(|e| format!("derive keys: {e}"))?;
 
-                let spend_secret = hex::decode(&keys.secret_spend_key)
-                    .map_err(|e| format!("spend key hex: {e}"))?;
-                let view_secret =
-                    hex::decode(&keys.secret_view_key).map_err(|e| format!("view key hex: {e}"))?;
-                let spend_public = hex::decode(&keys.public_spend_key)
-                    .map_err(|e| format!("spend pub hex: {e}"))?;
-                let view_public =
-                    hex::decode(&keys.public_view_key).map_err(|e| format!("view pub hex: {e}"))?;
-
-                let spend_secret: [u8; 32] = spend_secret
-                    .try_into()
-                    .map_err(|_| "spend secret key is not 32 bytes".to_string())?;
-                let view_secret: [u8; 32] = view_secret
-                    .try_into()
-                    .map_err(|_| "view secret key is not 32 bytes".to_string())?;
-                let spend_public: [u8; 32] = spend_public
-                    .try_into()
-                    .map_err(|_| "spend public key is not 32 bytes".to_string())?;
-                let view_public: [u8; 32] = view_public
-                    .try_into()
-                    .map_err(|_| "view public key is not 32 bytes".to_string())?;
+                let spend_secret = keys.secret_spend_key.as_deref().copied().ok_or_else(|| {
+                    "cannot export a full keys file for a view-only wallet".to_string()
+                })?;
+                let view_secret = *keys.secret_view_key;
+                let spend_public = keys.public_spend_key;
+                let view_public = keys.public_view_key;
 
                 let now = current_time_secs();
 

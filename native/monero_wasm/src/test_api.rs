@@ -3,10 +3,35 @@
 //! Bindings to test Monero functions from JS.
 
 use monero_rust::{
-    derive_address, derive_keys, generate_seed, seed_birthday, validate_seed, SeedFormat,
+    SeedFormat, derive_address, derive_keys, generate_seed, seed_birthday, validate_seed,
 };
 use serde_wasm_bindgen::to_value;
 use wasm_bindgen::prelude::*;
+
+#[derive(serde::Serialize)]
+struct DerivedKeysJson {
+    address: String,
+    secret_spend_key: String,
+    secret_view_key: String,
+    public_spend_key: String,
+    public_view_key: String,
+}
+
+impl From<monero_rust::DerivedKeys> for DerivedKeysJson {
+    fn from(keys: monero_rust::DerivedKeys) -> Self {
+        Self {
+            address: keys.address.to_string(),
+            secret_spend_key: keys
+                .secret_spend_key
+                .as_deref()
+                .map(hex::encode)
+                .unwrap_or_default(),
+            secret_view_key: hex::encode(&*keys.secret_view_key),
+            public_spend_key: hex::encode(keys.public_spend_key),
+            public_view_key: hex::encode(keys.public_view_key),
+        }
+    }
+}
 
 #[wasm_bindgen]
 pub struct TestApi;
@@ -40,8 +65,8 @@ impl TestApi {
         let keys = derive_keys(seed, network, "")
             .map_err(|e| JsValue::from_str(&format!("keys failed: {}", e)))?;
 
-        // TODO: optimize serialization
-        to_value(&keys).map_err(|e| JsValue::from_str(&format!("serialize failed: {}", e)))
+        to_value(&DerivedKeysJson::from(keys))
+            .map_err(|e| JsValue::from_str(&format!("serialize failed: {}", e)))
     }
 
     #[wasm_bindgen]
