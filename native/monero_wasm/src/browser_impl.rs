@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose};
 use js_sys::Date;
-use monero_rust::abstractions::{
+use crate::abstractions::{
     AbError, AbResult, BlockResponse, GetOutsParams, OutsResponse, RpcClient, TimeProvider,
     TxSubmitResponse, WalletStorage,
 };
