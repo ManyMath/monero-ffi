@@ -146,93 +146,87 @@ pub(crate) fn rust_signal_id_for_name(name: &str) -> u32 {
 }
 
 /// Dispatches an incoming DartSignal by ID to its channel.
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn route_dart_signal(signal_id: u32, data: Vec<u8>) {
-    let json_str = match std::str::from_utf8(&data) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("route_dart_signal: invalid UTF-8 for signal_id {signal_id}: {e}");
-            return;
-        }
-    };
+pub(crate) fn route_dart_signal(signal_id: u32, data: Vec<u8>) -> Result<(), String> {
+    let json_str = std::str::from_utf8(&data)
+        .map_err(|error| format!("invalid UTF-8 for signal_id {signal_id}: {error}"))?;
 
     let result: Result<(), String> = match signal_id {
-        MONERO_TEST_REQUEST => crate::ffi_web::send_monero_test_request(json_str),
-        CREATE_WALLET_REQUEST => crate::ffi_web::send_create_wallet_request(json_str),
-        START_SYNC_REQUEST => crate::ffi_web::send_start_sync_request(json_str),
-        GET_BALANCE_REQUEST => crate::ffi_web::send_get_balance_request(json_str),
-        CREATE_TRANSACTION_REQUEST => crate::ffi_web::send_create_transaction_request(json_str),
-        SWEEP_ALL_REQUEST => crate::ffi_web::send_sweep_all_request(json_str),
-        GENERATE_SEED_REQUEST => crate::ffi_web::send_generate_seed_request(json_str),
-        GET_SEED_BIRTHDAY_REQUEST => crate::ffi_web::send_get_seed_birthday_request(json_str),
+        MONERO_TEST_REQUEST => crate::ffi_web::dispatch_monero_test_request(json_str),
+        CREATE_WALLET_REQUEST => crate::ffi_web::dispatch_create_wallet_request(json_str),
+        START_SYNC_REQUEST => crate::ffi_web::dispatch_start_sync_request(json_str),
+        GET_BALANCE_REQUEST => crate::ffi_web::dispatch_get_balance_request(json_str),
+        CREATE_TRANSACTION_REQUEST => crate::ffi_web::dispatch_create_transaction_request(json_str),
+        SWEEP_ALL_REQUEST => crate::ffi_web::dispatch_sweep_all_request(json_str),
+        GENERATE_SEED_REQUEST => crate::ffi_web::dispatch_generate_seed_request(json_str),
+        GET_SEED_BIRTHDAY_REQUEST => crate::ffi_web::dispatch_get_seed_birthday_request(json_str),
         GET_BLOCK_HEIGHT_FROM_TIMESTAMP_REQUEST => {
-            crate::ffi_web::send_get_block_height_from_timestamp_request(json_str)
+            crate::ffi_web::dispatch_get_block_height_from_timestamp_request(json_str)
         }
-        DERIVE_ADDRESS_REQUEST => crate::ffi_web::send_derive_address_request(json_str),
-        DERIVE_SUBADDRESS_REQUEST => crate::ffi_web::send_derive_subaddress_request(json_str),
-        DERIVE_KEYS_REQUEST => crate::ffi_web::send_derive_keys_request(json_str),
-        SCAN_BLOCK_REQUEST => crate::ffi_web::send_scan_block_request(json_str),
+        DERIVE_ADDRESS_REQUEST => crate::ffi_web::dispatch_derive_address_request(json_str),
+        DERIVE_SUBADDRESS_REQUEST => crate::ffi_web::dispatch_derive_subaddress_request(json_str),
+        DERIVE_KEYS_REQUEST => crate::ffi_web::dispatch_derive_keys_request(json_str),
+        SCAN_BLOCK_REQUEST => crate::ffi_web::dispatch_scan_block_request(json_str),
         BROADCAST_TRANSACTION_REQUEST => {
-            crate::ffi_web::send_broadcast_transaction_request(json_str)
+            crate::ffi_web::dispatch_broadcast_transaction_request(json_str)
         }
-        QUERY_DAEMON_HEIGHT_REQUEST => crate::ffi_web::send_query_daemon_height_request(json_str),
+        QUERY_DAEMON_HEIGHT_REQUEST => {
+            crate::ffi_web::dispatch_query_daemon_height_request(json_str)
+        }
         START_CONTINUOUS_SCAN_REQUEST => {
-            crate::ffi_web::send_start_continuous_scan_request(json_str)
+            crate::ffi_web::dispatch_start_continuous_scan_request(json_str)
         }
-        STOP_SCAN_REQUEST => crate::ffi_web::send_stop_scan_request(json_str),
-        MEMPOOL_SCAN_REQUEST => crate::ffi_web::send_mempool_scan_request(json_str),
-        GENERATE_OUT_PROOF_REQUEST => crate::ffi_web::send_generate_out_proof_request(json_str),
-        SAVE_WALLET_DATA_REQUEST => crate::ffi_web::send_save_wallet_data_request(json_str),
-        LOAD_WALLET_DATA_REQUEST => crate::ffi_web::send_load_wallet_data_request(json_str),
+        STOP_SCAN_REQUEST => crate::ffi_web::dispatch_stop_scan_request(json_str),
+        MEMPOOL_SCAN_REQUEST => crate::ffi_web::dispatch_mempool_scan_request(json_str),
+        GENERATE_OUT_PROOF_REQUEST => crate::ffi_web::dispatch_generate_out_proof_request(json_str),
+        SAVE_WALLET_DATA_REQUEST => crate::ffi_web::dispatch_save_wallet_data_request(json_str),
+        LOAD_WALLET_DATA_REQUEST => crate::ffi_web::dispatch_load_wallet_data_request(json_str),
         DERIVE_ENCRYPTION_KEY_REQUEST => {
-            crate::ffi_web::send_derive_encryption_key_request(json_str)
+            crate::ffi_web::dispatch_derive_encryption_key_request(json_str)
         }
         SAVE_WITH_DERIVED_KEY_REQUEST => {
-            crate::ffi_web::send_save_with_derived_key_request(json_str)
+            crate::ffi_web::dispatch_save_with_derived_key_request(json_str)
         }
         SCAN_BLOCK_MULTI_WALLET_REQUEST => {
-            crate::ffi_web::send_scan_block_multi_wallet_request(json_str)
+            crate::ffi_web::dispatch_scan_block_multi_wallet_request(json_str)
         }
         START_MULTI_WALLET_SCAN_REQUEST => {
-            crate::ffi_web::send_start_multi_wallet_scan_request(json_str)
+            crate::ffi_web::dispatch_start_multi_wallet_scan_request(json_str)
         }
-        RESTORE_WALLET_DATA_REQUEST => crate::ffi_web::send_restore_wallet_data_request(json_str),
-        GET_BLOCK_HASHES_REQUEST => crate::ffi_web::send_get_block_hashes_request(json_str),
-        GET_PENDING_STATE_REQUEST => crate::ffi_web::send_get_pending_state_request(json_str),
+        RESTORE_WALLET_DATA_REQUEST => {
+            crate::ffi_web::dispatch_restore_wallet_data_request(json_str)
+        }
+        GET_BLOCK_HASHES_REQUEST => crate::ffi_web::dispatch_get_block_hashes_request(json_str),
+        GET_PENDING_STATE_REQUEST => crate::ffi_web::dispatch_get_pending_state_request(json_str),
         CONVERT_BIP39_TO_LEGACY_REQUEST => {
-            crate::ffi_web::send_convert_bip39_to_legacy_request(json_str)
+            crate::ffi_web::dispatch_convert_bip39_to_legacy_request(json_str)
         }
-        FREEZE_OUTPUT_REQUEST => crate::ffi_web::send_freeze_output_request(json_str),
-        THAW_OUTPUT_REQUEST => crate::ffi_web::send_thaw_output_request(json_str),
+        FREEZE_OUTPUT_REQUEST => crate::ffi_web::dispatch_freeze_output_request(json_str),
+        THAW_OUTPUT_REQUEST => crate::ffi_web::dispatch_thaw_output_request(json_str),
         CREATE_UNSIGNED_TRANSACTION_REQUEST => {
-            crate::ffi_web::send_create_unsigned_transaction_request(json_str)
+            crate::ffi_web::dispatch_create_unsigned_transaction_request(json_str)
         }
         PREVIEW_UNSIGNED_TRANSACTION_REQUEST => {
-            crate::ffi_web::send_preview_unsigned_transaction_request(json_str)
+            crate::ffi_web::dispatch_preview_unsigned_transaction_request(json_str)
         }
         SIGN_UNSIGNED_TRANSACTION_REQUEST => {
-            crate::ffi_web::send_sign_unsigned_transaction_request(json_str)
+            crate::ffi_web::dispatch_sign_unsigned_transaction_request(json_str)
         }
-        EXTRACT_SIGNED_TXSET_REQUEST => crate::ffi_web::send_extract_signed_txset_request(json_str),
+        EXTRACT_SIGNED_TXSET_REQUEST => {
+            crate::ffi_web::dispatch_extract_signed_txset_request(json_str)
+        }
         INSPECT_UNSIGNED_TXSET_REQUEST => {
-            crate::ffi_web::send_inspect_unsigned_txset_request(json_str)
+            crate::ffi_web::dispatch_inspect_unsigned_txset_request(json_str)
         }
-        BUILD_SIGNED_TXSET_REQUEST => crate::ffi_web::send_build_signed_txset_request(json_str),
-        EXPORT_KEY_IMAGES_REQUEST => crate::ffi_web::send_export_key_images_request(json_str),
-        IMPORT_KEY_IMAGES_REQUEST => crate::ffi_web::send_import_key_images_request(json_str),
-        IMPORT_KEYS_FILE_REQUEST => crate::ffi_web::send_import_keys_file_request(json_str),
-        EXPORT_KEYS_FILE_REQUEST => crate::ffi_web::send_export_keys_file_request(json_str),
-        START_UR_ENCODER_REQUEST => crate::ffi_web::send_start_ur_encoder_request(json_str),
-        STOP_UR_ENCODER_REQUEST => crate::ffi_web::send_stop_ur_encoder_request(json_str),
-        UR_DECODE_FRAME_REQUEST => crate::ffi_web::send_ur_decode_frame_request(json_str),
-        RESET_UR_DECODER_REQUEST => crate::ffi_web::send_reset_ur_decoder_request(json_str),
-        _ => {
-            eprintln!("route_dart_signal: unknown signal_id: {signal_id}");
-            return;
-        }
+        BUILD_SIGNED_TXSET_REQUEST => crate::ffi_web::dispatch_build_signed_txset_request(json_str),
+        EXPORT_KEY_IMAGES_REQUEST => crate::ffi_web::dispatch_export_key_images_request(json_str),
+        IMPORT_KEY_IMAGES_REQUEST => crate::ffi_web::dispatch_import_key_images_request(json_str),
+        IMPORT_KEYS_FILE_REQUEST => crate::ffi_web::dispatch_import_keys_file_request(json_str),
+        EXPORT_KEYS_FILE_REQUEST => crate::ffi_web::dispatch_export_keys_file_request(json_str),
+        START_UR_ENCODER_REQUEST => crate::ffi_web::dispatch_start_ur_encoder_request(json_str),
+        STOP_UR_ENCODER_REQUEST => crate::ffi_web::dispatch_stop_ur_encoder_request(json_str),
+        UR_DECODE_FRAME_REQUEST => crate::ffi_web::dispatch_ur_decode_frame_request(json_str),
+        RESET_UR_DECODER_REQUEST => crate::ffi_web::dispatch_reset_ur_decoder_request(json_str),
+        _ => Err(format!("unknown signal_id: {signal_id}")),
     };
-
-    if let Err(e) = result {
-        eprintln!("route_dart_signal: failed to dispatch signal_id {signal_id}: {e}");
-    }
+    result
 }

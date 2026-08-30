@@ -145,7 +145,9 @@ pub unsafe extern "C" fn hub_send_dart_signal(
         unsafe { std::slice::from_raw_parts(data_ptr, data_len) }.to_vec()
     };
 
-    crate::signal_ids::route_dart_signal(signal_id, data);
+    if let Err(error) = crate::signal_ids::route_dart_signal(signal_id, data) {
+        eprintln!("failed to dispatch legacy signal {signal_id}: {error}");
+    }
 }
 
 /// Result of dispatching a language-neutral protocol envelope.

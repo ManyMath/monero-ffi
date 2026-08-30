@@ -130,34 +130,22 @@ pub fn generate_signal_ids(signals: &[SignalClass]) -> String {
 
     // -- route_dart_signal function --
     out.push_str("/// Dispatches an incoming DartSignal by ID to its channel.\n");
-    out.push_str("#[cfg(not(target_arch = \"wasm32\"))]\n");
-    out.push_str("pub(crate) fn route_dart_signal(signal_id: u32, data: Vec<u8>) {\n");
-    out.push_str("    let json_str = match std::str::from_utf8(&data) {\n");
-    out.push_str("        Ok(s) => s,\n");
-    out.push_str("        Err(e) => {\n");
-    out.push_str("            eprintln!(\"route_dart_signal: invalid UTF-8 for signal_id {signal_id}: {e}\");\n");
-    out.push_str("            return;\n");
-    out.push_str("        }\n");
-    out.push_str("    };\n");
+    out.push_str("pub(crate) fn route_dart_signal(signal_id: u32, data: Vec<u8>) -> Result<(), String> {\n");
+    out.push_str("    let json_str = std::str::from_utf8(&data)\n");
+    out.push_str("        .map_err(|error| format!(\"invalid UTF-8 for signal_id {signal_id}: {error}\"))?;\n");
     out.push('\n');
     out.push_str("    let result: Result<(), String> = match signal_id {\n");
     for sig in &dart2rust {
         let const_name = pascal_to_screaming_snake(&sig.name);
         let snake_name = pascal_to_snake(&sig.name);
         out.push_str(&format!(
-            "        {} =>\n            crate::ffi_web::send_{}(json_str),\n",
+            "        {} =>\n            crate::ffi_web::dispatch_{}(json_str),\n",
             const_name, snake_name
         ));
     }
-    out.push_str("        _ => {\n");
-    out.push_str("            eprintln!(\"route_dart_signal: unknown signal_id: {signal_id}\");\n");
-    out.push_str("            return;\n");
-    out.push_str("        }\n");
+    out.push_str("        _ => Err(format!(\"unknown signal_id: {signal_id}\")),\n");
     out.push_str("    };\n");
-    out.push('\n');
-    out.push_str("    if let Err(e) = result {\n");
-    out.push_str("        eprintln!(\"route_dart_signal: failed to dispatch signal_id {signal_id}: {e}\");\n");
-    out.push_str("    }\n");
+    out.push_str("    result\n");
     out.push_str("}\n");
 
     out
@@ -191,8 +179,8 @@ use crate::signals::*;
 // For each DartSignal type, generates:
 //   - On wasm32: a thread_local UnboundedSender (single-threaded, safe)
 //   - On native: a static Mutex<Option<UnboundedSender>> (supports hub restart)
+//   - A cross-platform internal `dispatch_<snake_name>(json)` (String error)
 //   - On wasm32: a #[wasm_bindgen] export `send_<snake_name>(json)` (JsValue error)
-//   - On native: a pub(crate) `send_<snake_name>(json)` (String error)
 //   - A `get_<snake_name>_receiver()` function for actors to call during init
 
 macro_rules! dart_signal {
@@ -212,21 +200,20 @@ macro_rules! dart_signal {
                 = std::sync::Mutex::new(None);
 
             #[cfg(target_arch = "wasm32")]
-            #[wasm_bindgen]
-            pub fn [<send_ $snake>](json: &str) -> Result<(), JsValue> {
+            pub(crate) fn [<dispatch_ $snake>](json: &str) -> Result<(), String> {
                 let msg: $type = serde_json::from_str(json)
-                    .map_err(|e| JsValue::from_str(&e.to_string()))?;
+                    .map_err(|e| e.to_string())?;
                 [<$snake:upper _SENDER>].with(|s| {
                     if let Some(tx) = s.borrow().as_ref() {
-                        tx.send(msg).map_err(|_| JsValue::from_str("channel closed"))
+                        tx.send(msg).map_err(|_| "channel closed".to_string())
                     } else {
-                        Err(JsValue::from_str("not initialized"))
+                        Err("not initialized".to_string())
                     }
                 })
             }
 
             #[cfg(not(target_arch = "wasm32"))]
-            pub(crate) fn [<send_ $snake>](json: &str) -> Result<(), String> {
+            pub(crate) fn [<dispatch_ $snake>](json: &str) -> Result<(), String> {
                 let msg: $type = serde_json::from_str(json)
                     .map_err(|e| e.to_string())?;
                 let guard = [<$snake:upper _SENDER>].lock()
@@ -235,6 +222,12 @@ macro_rules! dart_signal {
                     Some(tx) => tx.send(msg).map_err(|_| "channel closed".to_string()),
                     None => Err("not initialized".to_string()),
                 }
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            #[wasm_bindgen]
+            pub fn [<send_ $snake>](json: &str) -> Result<(), JsValue> {
+                [<dispatch_ $snake>](json).map_err(|error| JsValue::from_str(&error))
             }
 
             #[cfg(target_arch = "wasm32")]

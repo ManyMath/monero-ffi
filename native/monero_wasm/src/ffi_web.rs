@@ -12,8 +12,8 @@ use crate::signals::*;
 // For each DartSignal type, generates:
 //   - On wasm32: a thread_local UnboundedSender (single-threaded, safe)
 //   - On native: a static Mutex<Option<UnboundedSender>> (supports hub restart)
+//   - A cross-platform internal `dispatch_<snake_name>(json)` (String error)
 //   - On wasm32: a #[wasm_bindgen] export `send_<snake_name>(json)` (JsValue error)
-//   - On native: a pub(crate) `send_<snake_name>(json)` (String error)
 //   - A `get_<snake_name>_receiver()` function for actors to call during init
 
 macro_rules! dart_signal {
@@ -33,21 +33,20 @@ macro_rules! dart_signal {
                 = std::sync::Mutex::new(None);
 
             #[cfg(target_arch = "wasm32")]
-            #[wasm_bindgen]
-            pub fn [<send_ $snake>](json: &str) -> Result<(), JsValue> {
+            pub(crate) fn [<dispatch_ $snake>](json: &str) -> Result<(), String> {
                 let msg: $type = serde_json::from_str(json)
-                    .map_err(|e| JsValue::from_str(&e.to_string()))?;
+                    .map_err(|e| e.to_string())?;
                 [<$snake:upper _SENDER>].with(|s| {
                     if let Some(tx) = s.borrow().as_ref() {
-                        tx.send(msg).map_err(|_| JsValue::from_str("channel closed"))
+                        tx.send(msg).map_err(|_| "channel closed".to_string())
                     } else {
-                        Err(JsValue::from_str("not initialized"))
+                        Err("not initialized".to_string())
                     }
                 })
             }
 
             #[cfg(not(target_arch = "wasm32"))]
-            pub(crate) fn [<send_ $snake>](json: &str) -> Result<(), String> {
+            pub(crate) fn [<dispatch_ $snake>](json: &str) -> Result<(), String> {
                 let msg: $type = serde_json::from_str(json)
                     .map_err(|e| e.to_string())?;
                 let guard = [<$snake:upper _SENDER>].lock()
@@ -56,6 +55,12 @@ macro_rules! dart_signal {
                     Some(tx) => tx.send(msg).map_err(|_| "channel closed".to_string()),
                     None => Err("not initialized".to_string()),
                 }
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            #[wasm_bindgen]
+            pub fn [<send_ $snake>](json: &str) -> Result<(), JsValue> {
+                [<dispatch_ $snake>](json).map_err(|error| JsValue::from_str(&error))
             }
 
             #[cfg(target_arch = "wasm32")]

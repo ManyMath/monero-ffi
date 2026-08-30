@@ -7,6 +7,7 @@ pub mod browser_impl;
 mod core_rpc;
 mod error_codes;
 pub mod ffi_web;
+pub mod legacy_signal_facade;
 pub(crate) mod logging;
 mod messages;
 #[cfg(target_arch = "wasm32")]
@@ -34,5 +35,6 @@ pub fn new_protocol_dispatcher()
 -> Result<monero_ffi_protocol::RuntimeDispatcher, monero_ffi_protocol::ProtocolError> {
     let mut dispatcher = monero_ffi_protocol::RuntimeDispatcher::new();
     dispatcher.mount(wallet2_facade::Wallet2Facade::new())?;
+    dispatcher.mount(legacy_signal_facade::LegacySignalFacade::new())?;
     Ok(dispatcher)
 }
