@@ -37,7 +37,13 @@ workspace/
   monero-cli/
 ```
 
-Run the Rust tests with:
+Use the fast Rust adapter loop during routine development:
+
+```sh
+scripts/test-fast.sh
+```
+
+Run the authoritative Rust, wasm, generated-signal, and Dart matrix with:
 
 ```sh
 scripts/test-all.sh
