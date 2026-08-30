@@ -33,8 +33,23 @@ WebAssembly callers use the exported `dispatch_envelope(Uint8Array)` function.
 It returns the encoded completion or throws a JavaScript error. Both transports
 retain facade state between calls.
 
-The existing numeric Dart signal ABI remains supported. It is a compatibility
-facade, not the format new language adapters should reproduce.
+The existing numeric Dart signal ABI remains supported both through its direct
+entry points and through the compatibility facade below. New language adapters
+should use wallet2 or another purpose-built facade rather than reproduce it.
+
+## Legacy signal facade version 1.0
+
+Protocol identifier: `org.sneurlax.monero-extension.signals`.
+
+The `signal.send` command has no wallet handle. Its body is `{0: signal-id,
+1: json-bytes}`, where the ID is an unsigned 32-bit integer and the JSON is a
+CBOR byte string containing exactly the payload accepted by the original
+signal API. A successful completion has an empty body.
+
+Rust-to-Dart responses remain asynchronous and are delivered through the
+callback registered by the existing native or WebAssembly signal runtime.
+Dispatch errors are returned by the envelope transport; the original void C
+entry point continues to report them through stderr for ABI compatibility.
 
 ## wallet2 facade version 1.0
 
