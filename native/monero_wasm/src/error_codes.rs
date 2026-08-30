@@ -35,6 +35,22 @@ impl Network {
     }
 }
 
+impl From<Network> for monero_rust::Network {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Mainnet => Self::Mainnet,
+            Network::Testnet => Self::Testnet,
+            Network::Stagenet => Self::Stagenet,
+        }
+    }
+}
+
+pub(crate) fn parse_core_network(value: &str) -> Result<monero_rust::Network, String> {
+    Network::parse(value)
+        .map(Into::into)
+        .map_err(|error| error.message)
+}
+
 pub(crate) fn validate_network(value: &str) -> Result<(), ErrorResponse> {
     Network::parse(value).map(|_| ())
 }
@@ -197,12 +213,8 @@ mod tests {
 
     #[test]
     fn preserves_mainnet_http_policy_code() {
-        let error = validate_node_url_for_network(
-            "http://node.example",
-            Network::Mainnet,
-            false,
-        )
-        .unwrap_err();
+        let error = validate_node_url_for_network("http://node.example", Network::Mainnet, false)
+            .unwrap_err();
         assert_eq!(error.code, ERR_RPC_MAINNET_HTTP_NOT_ALLOWED);
     }
 

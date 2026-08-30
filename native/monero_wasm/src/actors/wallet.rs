@@ -642,10 +642,12 @@ impl WalletActor {
                     continue;
                 }
             };
-            match monero_rust::derive_address(&resolved, &request.network, &request.passphrase) {
+            match crate::error_codes::parse_core_network(&request.network).and_then(|network| {
+                monero_rust::derive_address(&resolved, network, &request.passphrase)
+            }) {
                 Ok(address) => {
                     AddressDerivedResponse {
-                        address,
+                        address: address.to_string(),
                         success: true,
                         error: None,
                         error_code: None,
@@ -696,16 +698,18 @@ impl WalletActor {
                     continue;
                 }
             };
-            match monero_rust::derive_subaddress(
-                &resolved,
-                &request.network,
-                request.account,
-                request.address_index,
-                &request.passphrase,
-            ) {
+            match crate::error_codes::parse_core_network(&request.network).and_then(|network| {
+                monero_rust::derive_subaddress(
+                    &resolved,
+                    network,
+                    request.account,
+                    request.address_index,
+                    &request.passphrase,
+                )
+            }) {
                 Ok(address) => {
                     SubaddressDerivedResponse {
-                        address,
+                        address: address.to_string(),
                         success: true,
                         error: None,
                         error_code: None,
@@ -760,7 +764,9 @@ impl WalletActor {
                     continue;
                 }
             };
-            match monero_rust::derive_keys(&resolved, &request.network, &request.passphrase) {
+            match crate::error_codes::parse_core_network(&request.network).and_then(|network| {
+                monero_rust::derive_keys(&resolved, network, &request.passphrase)
+            }) {
                 Ok(keys) => {
                     KeysDerivedResponse {
                         address: keys.address.to_string(),
@@ -3030,7 +3036,8 @@ impl WalletActor {
         let mut receiver = crate::ffi_web::get_export_keys_file_request_receiver();
         while let Some(request) = receiver.recv().await {
             let result = (|| -> Result<Vec<u8>, String> {
-                let keys = monero_rust::derive_keys(&request.seed, &request.network, "")
+                let network = crate::error_codes::parse_core_network(&request.network)?;
+                let keys = monero_rust::derive_keys(&request.seed, network, "")
                     .map_err(|e| format!("derive keys: {e}"))?;
 
                 let spend_secret = keys.secret_spend_key.as_deref().copied().ok_or_else(|| {

@@ -40,7 +40,8 @@ impl Wallet2Facade {
             return Err("wallet.open_seed must not include a wallet handle".to_string());
         }
         let request = OpenSeedRequest::decode(&command.body)?;
-        let keys = monero_rust::derive_keys(&request.seed, &request.network, &request.passphrase)?;
+        let network = crate::error_codes::parse_core_network(&request.network)?;
+        let keys = monero_rust::derive_keys(&request.seed, network, &request.passphrase)?;
         let address = keys.address.to_string();
         let wallet = self.next_wallet;
         self.next_wallet = self

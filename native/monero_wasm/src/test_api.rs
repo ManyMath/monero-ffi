@@ -56,12 +56,17 @@ impl TestApi {
     // Derive address from seed
     #[wasm_bindgen]
     pub fn derive_address(seed: &str, network: &str) -> Result<String, JsValue> {
+        let network = crate::error_codes::parse_core_network(network)
+            .map_err(|e| JsValue::from_str(&format!("addr failed: {e}")))?;
         derive_address(seed, network, "")
+            .map(|address| address.to_string())
             .map_err(|e| JsValue::from_str(&format!("addr failed: {}", e)))
     }
 
     #[wasm_bindgen]
     pub fn derive_keys(seed: &str, network: &str) -> Result<JsValue, JsValue> {
+        let network = crate::error_codes::parse_core_network(network)
+            .map_err(|e| JsValue::from_str(&format!("keys failed: {e}")))?;
         let keys = derive_keys(seed, network, "")
             .map_err(|e| JsValue::from_str(&format!("keys failed: {}", e)))?;
 
