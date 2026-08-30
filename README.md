@@ -20,6 +20,9 @@ UI and browser-extension behavior belong in `monero-extension`.
 - `lib/monero_ffi_web.dart`: Web Worker transport entry point
 - `web/pkg/monero_wasm_worker.js`: Web Worker transport for the WASM runtime
 
+The language-neutral envelope, native/WASM entry points, and currently mounted
+wallet2 operations are specified in [`docs/protocol.md`](docs/protocol.md).
+
 The extraction preserved the source history from `monero-extension`. Reorganization behind the
 compatibility surface will happen incrementally so existing Flutter consumers remain usable.
 
