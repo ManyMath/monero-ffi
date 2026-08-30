@@ -91,6 +91,7 @@ pub(crate) async fn scan_block_for_outputs_with_url_and_lookahead(
     lookahead: monero_rust::Lookahead,
     passphrase: &str,
 ) -> Result<monero_rust::BlockScanResult, String> {
+    let network = crate::error_codes::parse_core_network(network)?;
     #[cfg(not(target_arch = "wasm32"))]
     {
         monero_rust::scan_block_for_outputs_with_url_and_lookahead(
@@ -107,7 +108,6 @@ pub(crate) async fn scan_block_for_outputs_with_url_and_lookahead(
     #[cfg(target_arch = "wasm32")]
     {
         crate::error_codes::validate_node_url(node_url).map_err(|e| e.message)?;
-        crate::error_codes::validate_network(network).map_err(|e| e.message)?;
         let rpc = Rpc::new_with_connection(crate::rpc_adapter::WasmRpcAdapter::new(
             node_url.to_string(),
         ));
@@ -152,6 +152,7 @@ pub(crate) async fn scan_mempool_for_outputs_with_account_lookahead(
     accounts_to_scan: Option<&[u32]>,
     passphrase: &str,
 ) -> Result<monero_rust::MempoolScanResult, String> {
+    let network = crate::error_codes::parse_core_network(network)?;
     #[cfg(not(target_arch = "wasm32"))]
     {
         monero_rust::scan_mempool_for_outputs_with_account_lookahead(

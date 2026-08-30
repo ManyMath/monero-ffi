@@ -51,10 +51,6 @@ pub(crate) fn parse_core_network(value: &str) -> Result<monero_rust::Network, St
         .map_err(|error| error.message)
 }
 
-pub(crate) fn validate_network(value: &str) -> Result<(), ErrorResponse> {
-    Network::parse(value).map(|_| ())
-}
-
 pub(crate) fn validate_node_url(url: &str) -> Result<(), ErrorResponse> {
     let trimmed = url.trim();
     if trimmed.is_empty() {

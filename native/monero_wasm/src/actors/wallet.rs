@@ -1193,12 +1193,18 @@ impl WalletActor {
 
             // Pre-resolve all wallet seeds before spawning async task
             let mut resolved_seeds = Vec::new();
+            let mut resolved_networks = Vec::new();
             let mut resolve_err = None;
             for w in &request.wallets {
-                match pre_resolve_bip39(&w.seed, &w.passphrase, w.bip39_account_index) {
-                    Ok(s) => resolved_seeds.push(s),
-                    Err(e) => {
-                        resolve_err = Some(e);
+                let resolved = pre_resolve_bip39(&w.seed, &w.passphrase, w.bip39_account_index);
+                let network = crate::error_codes::parse_core_network(&w.network);
+                match (resolved, network) {
+                    (Ok(seed), Ok(network)) => {
+                        resolved_seeds.push(seed);
+                        resolved_networks.push(network);
+                    }
+                    (Err(error), _) | (_, Err(error)) => {
+                        resolve_err = Some(error);
                         break;
                     }
                 }
@@ -1232,7 +1238,7 @@ impl WalletActor {
                     .enumerate()
                     .map(|(i, w)| monero_rust::WalletScanConfig {
                         mnemonic: resolved_seeds[i].clone(),
-                        network: w.network.clone(),
+                        network: resolved_networks[i],
                         lookahead: monero_rust::compute_lookahead(
                             w.account_lookahead,
                             w.subaddress_lookahead,
@@ -1312,8 +1318,10 @@ impl WalletActor {
             let mut resolved_wallets = Vec::new();
             let mut resolve_err = None;
             for w in &request.wallets {
-                match pre_resolve_bip39(&w.seed, &w.passphrase, w.bip39_account_index) {
-                    Ok(s) => resolved_wallets.push(WalletConfig {
+                let resolved = pre_resolve_bip39(&w.seed, &w.passphrase, w.bip39_account_index);
+                let network = crate::error_codes::parse_core_network(&w.network);
+                match (resolved, network) {
+                    (Ok(s), Ok(_)) => resolved_wallets.push(WalletConfig {
                         seed: s,
                         network: w.network.clone(),
                         account_lookahead: w.account_lookahead,
@@ -1322,14 +1330,14 @@ impl WalletActor {
                         passphrase: w.passphrase.clone(),
                         bip39_account_index: 0,
                     }),
-                    Err(e) => {
+                    (Err(e), _) | (_, Err(e)) => {
                         resolve_err = Some(e);
                         break;
                     }
                 }
             }
             if let Some(e) = resolve_err {
-                let msg = format!("Failed to resolve BIP39 seed: {}", e);
+                let msg = format!("Invalid wallet configuration: {}", e);
                 let err = crate::error_codes::ErrorResponse::from_string(&msg);
                 MultiWalletScanResponse {
                     success: false,
@@ -2120,16 +2128,21 @@ impl Notifiable<ContinueScan> for WalletActor {
                 Ok(fp) => take_scanner_cache_by_fingerprint(&fp),
                 Err(_) => None, // fingerprint failure is non-fatal; scanner will be rebuilt
             };
-            match monero_rust::process_fetched_batch_cached(
-                fetched,
-                &seed,
-                &network,
-                lookahead,
-                cached_scanner,
-                &passphrase,
-            )
-            .await
-            {
+            let processed = match crate::error_codes::parse_core_network(&network) {
+                Ok(network) => {
+                    monero_rust::process_fetched_batch_cached(
+                        fetched,
+                        &seed,
+                        network,
+                        lookahead,
+                        cached_scanner,
+                        &passphrase,
+                    )
+                    .await
+                }
+                Err(error) => Err(error),
+            };
+            match processed {
                 Ok((batch_results, returned_scanner)) => {
                     if batch_results.is_empty() {
                         let _ = self_addr.notify(StopScan).await;
@@ -2346,7 +2359,8 @@ impl Notifiable<ContinueMultiWalletScan> for WalletActor {
                 .iter()
                 .map(|w| monero_rust::WalletScanConfig {
                     mnemonic: w.seed.clone(),
-                    network: w.network.clone(),
+                    network: crate::error_codes::parse_core_network(&w.network)
+                        .expect("multi-wallet network was validated when scanning started"),
                     lookahead: monero_rust::compute_lookahead(
                         w.account_lookahead,
                         w.subaddress_lookahead,
