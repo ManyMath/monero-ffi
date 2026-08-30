@@ -4,8 +4,7 @@ use crate::signals::{QrFrameResponse, UrDecodeCompleteResponse, UrDecodeProgress
 use async_trait::async_trait;
 use messages::prelude::{Actor, Address, Context, Notifiable};
 use monero_rust::ur_codec::{
-    UR_TYPE_KEY_IMAGE, UR_TYPE_OUTPUT, UR_TYPE_SIGNED_TX, UR_TYPE_UNSIGNED_TX, UrDecoder,
-    UrEncoder,
+    UR_TYPE_KEY_IMAGE, UR_TYPE_OUTPUT, UR_TYPE_SIGNED_TX, UR_TYPE_UNSIGNED_TX, UrDecoder, UrEncoder,
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

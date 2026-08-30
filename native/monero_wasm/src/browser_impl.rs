@@ -2,13 +2,13 @@
 
 #![cfg(target_arch = "wasm32")]
 
-use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose};
-use js_sys::Date;
 use crate::abstractions::{
     AbError, AbResult, BlockResponse, GetOutsParams, OutsResponse, RpcClient, TimeProvider,
     TxSubmitResponse, WalletStorage,
 };
+use async_trait::async_trait;
+use base64::{Engine as _, engine::general_purpose};
+use js_sys::Date;
 use serde::Deserialize;
 use serde_json::Value;
 use wasm_bindgen::prelude::*;

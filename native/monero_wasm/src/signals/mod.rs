@@ -1130,10 +1130,7 @@ mod tests {
     fn formats_atomic_amounts_without_floating_point_loss() {
         assert_eq!(format_xmr_amount(0), "0.000000000000");
         assert_eq!(format_xmr_amount(1), "0.000000000001");
-        assert_eq!(
-            format_xmr_amount(u64::MAX),
-            "18446744.073709551615"
-        );
+        assert_eq!(format_xmr_amount(u64::MAX), "18446744.073709551615");
     }
 
     fn round_trip<T>(value: &T) -> serde_json::Value

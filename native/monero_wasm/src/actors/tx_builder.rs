@@ -1,9 +1,9 @@
+use crate::error_codes::ErrorResponse;
 use crate::ffi_web::SendToDart;
 use crate::messages::*;
 use crate::signals::*;
 use async_trait::async_trait;
 use messages::prelude::{Actor, Address, Context, Notifiable};
-use crate::error_codes::ErrorResponse;
 use tokio::task::JoinSet;
 use tokio_with_wasm::alias as tokio;
 
@@ -484,7 +484,9 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
 
                     spawn_local(async move {
                         // Query fresh daemon height to avoid stale core_state
-                        let daemon_height = match crate::core_rpc::get_daemon_height(&node_url).await {
+                        let daemon_height = match crate::core_rpc::get_daemon_height(&node_url)
+                            .await
+                        {
                             Ok(h) => {
                                 log::info!(
                                     "[BuildTx] Fresh daemon height: {}, stored: {}",
@@ -733,7 +735,9 @@ impl Notifiable<BuildTransaction> for TxBuilderActor {
                                                 tx_hash: c.tx_hash,
                                                 output_index: c.output_index.into(),
                                                 amount: c.amount,
-                                                amount_xmr: crate::signals::format_xmr_amount(c.amount),
+                                                amount_xmr: crate::signals::format_xmr_amount(
+                                                    c.amount,
+                                                ),
                                                 key: c.key,
                                                 key_offset: c.key_offset,
                                                 commitment_mask: c.commitment_mask,
@@ -806,10 +810,11 @@ impl Notifiable<SweepAll> for TxBuilderActor {
 
                     spawn_local(async move {
                         // Query fresh daemon height to avoid stale core_state
-                        let daemon_height = match crate::core_rpc::get_daemon_height(&node_url).await {
-                            Ok(h) => h.max(stored_daemon_height),
-                            Err(_) => stored_daemon_height,
-                        };
+                        let daemon_height =
+                            match crate::core_rpc::get_daemon_height(&node_url).await {
+                                Ok(h) => h.max(stored_daemon_height),
+                                Err(_) => stored_daemon_height,
+                            };
 
                         let excluded = if wallet_data.pending_key_images.is_empty() {
                             None
@@ -905,12 +910,8 @@ impl Notifiable<BroadcastTransaction> for TxBuilderActor {
 
         // Spawn in local task to avoid Send requirements
         spawn_local(async move {
-            match crate::core_rpc::broadcast_transaction(
-                &msg.node_url,
-                &msg.tx_blob,
-                do_not_relay,
-            )
-            .await
+            match crate::core_rpc::broadcast_transaction(&msg.node_url, &msg.tx_blob, do_not_relay)
+                .await
             {
                 Ok(()) => {
                     log::info!("Transaction broadcast successful!");
