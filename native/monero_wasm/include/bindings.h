@@ -76,11 +76,31 @@
 
 #define CREATE_UNSIGNED_TRANSACTION_REQUEST 32
 
-#define SIGN_UNSIGNED_TRANSACTION_REQUEST 33
+#define PREVIEW_UNSIGNED_TRANSACTION_REQUEST 33
 
-#define EXPORT_KEY_IMAGES_REQUEST 34
+#define SIGN_UNSIGNED_TRANSACTION_REQUEST 34
 
-#define IMPORT_KEY_IMAGES_REQUEST 35
+#define EXTRACT_SIGNED_TXSET_REQUEST 35
+
+#define INSPECT_UNSIGNED_TXSET_REQUEST 36
+
+#define BUILD_SIGNED_TXSET_REQUEST 37
+
+#define EXPORT_KEY_IMAGES_REQUEST 38
+
+#define IMPORT_KEY_IMAGES_REQUEST 39
+
+#define IMPORT_KEYS_FILE_REQUEST 40
+
+#define EXPORT_KEYS_FILE_REQUEST 41
+
+#define START_UR_ENCODER_REQUEST 42
+
+#define STOP_UR_ENCODER_REQUEST 43
+
+#define UR_DECODE_FRAME_REQUEST 44
+
+#define RESET_UR_DECODER_REQUEST 45
 
 #define MONERO_TEST_RESPONSE 101
 
@@ -140,14 +160,33 @@
 
 #define UNSIGNED_TRANSACTION_CREATED_RESPONSE 129
 
-#define TRANSACTION_SIGNED_OFFLINE_RESPONSE 130
+#define UNSIGNED_TRANSACTION_PREVIEWED_RESPONSE 130
 
-#define KEY_IMAGES_EXPORTED_RESPONSE 131
+#define TRANSACTION_SIGNED_OFFLINE_RESPONSE 131
 
-#define KEY_IMAGES_IMPORTED_RESPONSE 132
+#define SIGNED_TXSET_EXTRACTED_RESPONSE 132
+
+#define UNSIGNED_TXSET_INSPECTED_RESPONSE 133
+
+#define SIGNED_TXSET_BUILT_RESPONSE 134
+
+#define KEY_IMAGES_EXPORTED_RESPONSE 135
+
+#define KEY_IMAGES_IMPORTED_RESPONSE 136
+
+#define IMPORT_KEYS_FILE_RESPONSE 137
+
+#define EXPORT_KEYS_FILE_RESPONSE 138
+
+#define QR_FRAME_RESPONSE 139
+
+#define UR_DECODE_PROGRESS_RESPONSE 140
+
+#define UR_DECODE_COMPLETE_RESPONSE 141
 
 /**
- * Opaque handle returned by [`hub_init`]. Holds the tokio runtime.
+ * Opaque handle returned by [`hub_init`]. Holds the tokio runtime and
+ * a join handle for the background thread driving the event loop.
  */
 typedef struct HubHandle HubHandle;
 
@@ -165,7 +204,26 @@ typedef void (*RustSignalCallback)(uint32_t signal_id,
                                    void *user_data);
 
 /**
- * Initialize the hub runtime and register the Dart callback.
+ * Result of dispatching a language-neutral protocol envelope.
+ *
+ * `status == 0` means the buffer contains an encoded completion envelope.
+ * Any other status means the buffer contains a UTF-8 error message. In both
+ * cases the caller owns the buffer and must release it with `hub_free_bytes`.
+ */
+typedef struct HubDispatchResult {
+  uint8_t *data_ptr;
+  uintptr_t data_len;
+  int32_t status;
+} HubDispatchResult;
+
+extern Promise global_fetch(const Request *input);
+
+/**
+ * Initialize the hub runtime, register the Dart callback, and spawn actors.
+ *
+ * Creates a single-threaded tokio runtime on a dedicated background thread,
+ * then spawns the actor system (`create_actors`) inside it. The background
+ * thread runs the event loop until [`hub_shutdown`] drops the handle.
  *
  * Returns an opaque [`HubHandle`] pointer that must be passed to
  * [`hub_send_dart_signal`] and eventually freed with [`hub_shutdown`].
@@ -188,7 +246,22 @@ void hub_send_dart_signal(struct HubHandle *handle,
                           uintptr_t data_len);
 
 /**
+ * Dispatch a versioned protocol envelope through a mounted facade.
+ *
+ * # Safety
+ *
+ * `handle` must be a live pointer returned by [`hub_init`]. `data_ptr` must
+ * identify `data_len` readable bytes when `data_len` is non-zero.
+ */
+struct HubDispatchResult hub_dispatch_envelope(struct HubHandle *handle,
+                                               const uint8_t *data_ptr,
+                                               uintptr_t data_len);
+
+/**
  * Shut down the hub runtime and free the handle.
+ *
+ * Sends a shutdown signal to the background event loop, waits for the
+ * thread to finish, then frees the handle.
  *
  * # Safety
  *
