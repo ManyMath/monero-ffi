@@ -25,6 +25,8 @@ tokio = { version = "1.45.0", features = ["rt", "macros", "time", "sync"] }
 async-trait = "0.1.87"
 messages = "0.3.1"
 monero-rust = { path = "../../../monero-rust/rust/monero-rust" }
+monero-ffi-protocol = { path = "../monero_ffi_protocol" }
+minicbor = { version = "0.19", features = ["std"] }
 
 # Encryption lives in monero-rust's encryption.rs, not here; chacha20poly1305, argon2 and
 # rand were declared but used by no file in this crate.

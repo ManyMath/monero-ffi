@@ -1596,6 +1596,8 @@ dependencies = [
  "js-sys",
  "log",
  "messages",
+ "minicbor",
+ "monero-ffi-protocol",
  "monero-rust",
  "paste",
  "serde",

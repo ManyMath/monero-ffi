@@ -14,5 +14,6 @@ include_guard = "MONERO_WASM_BINDINGS_H"
 [export]
 include = [
     "HubHandle",
+    "HubDispatchResult",
     "RustSignalCallback",
 ]

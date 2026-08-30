@@ -18,6 +18,7 @@ pub struct HubHandle {
     shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
     /// Background thread running `runtime.block_on(...)`. Joined on shutdown.
     runtime_thread: Option<std::thread::JoinHandle<()>>,
+    dispatcher: Mutex<monero_ffi_protocol::RuntimeDispatcher>,
 }
 
 // Wrapper to make raw pointers Send+Sync for the global Mutex.
@@ -82,6 +83,11 @@ pub extern "C" fn hub_init(callback: RustSignalCallback, user_data: *mut c_void)
         });
     }
 
+    let dispatcher = match crate::new_protocol_dispatcher() {
+        Ok(dispatcher) => dispatcher,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -108,6 +114,7 @@ pub extern "C" fn hub_init(callback: RustSignalCallback, user_data: *mut c_void)
         runtime_handle,
         shutdown_tx: Some(shutdown_tx),
         runtime_thread: Some(runtime_thread),
+        dispatcher: Mutex::new(dispatcher),
     });
     Box::into_raw(handle)
 }
@@ -139,6 +146,68 @@ pub unsafe extern "C" fn hub_send_dart_signal(
     };
 
     crate::signal_ids::route_dart_signal(signal_id, data);
+}
+
+/// Result of dispatching a language-neutral protocol envelope.
+///
+/// `status == 0` means the buffer contains an encoded completion envelope.
+/// Any other status means the buffer contains a UTF-8 error message. In both
+/// cases the caller owns the buffer and must release it with `hub_free_bytes`.
+#[repr(C)]
+pub struct HubDispatchResult {
+    pub data_ptr: *mut u8,
+    pub data_len: usize,
+    pub status: i32,
+}
+
+/// Dispatch a versioned protocol envelope through a mounted facade.
+///
+/// # Safety
+///
+/// `handle` must be a live pointer returned by [`hub_init`]. `data_ptr` must
+/// identify `data_len` readable bytes when `data_len` is non-zero.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn hub_dispatch_envelope(
+    handle: *mut HubHandle,
+    data_ptr: *const u8,
+    data_len: usize,
+) -> HubDispatchResult {
+    let error = |message: String| {
+        let (data_ptr, data_len) = alloc_rust_bytes(message.into_bytes());
+        HubDispatchResult {
+            data_ptr,
+            data_len,
+            status: 1,
+        }
+    };
+
+    if handle.is_null() {
+        return error("null hub handle".to_string());
+    }
+    let data = if data_len == 0 {
+        &[]
+    } else if data_ptr.is_null() {
+        return error("null envelope pointer".to_string());
+    } else {
+        unsafe { std::slice::from_raw_parts(data_ptr, data_len) }
+    };
+
+    let handle = unsafe { &*handle };
+    let mut dispatcher = match handle.dispatcher.lock() {
+        Ok(dispatcher) => dispatcher,
+        Err(_) => return error("protocol dispatcher lock poisoned".to_string()),
+    };
+    match dispatcher.dispatch(data) {
+        Ok(completion) => {
+            let (data_ptr, data_len) = alloc_rust_bytes(completion);
+            HubDispatchResult {
+                data_ptr,
+                data_len,
+                status: 0,
+            }
+        }
+        Err(dispatch_error) => error(dispatch_error.to_string()),
+    }
 }
 
 /// Shut down the hub runtime and free the handle.
@@ -200,4 +269,42 @@ pub(crate) fn alloc_rust_bytes(data: Vec<u8>) -> (*mut u8, usize) {
     let len = boxed.len();
     let ptr = Box::into_raw(boxed) as *mut u8;
     (ptr, len)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use monero_ffi_protocol::{FrameKind, WALLET2_PROTOCOL, WireEnvelope};
+
+    const SEED: &str = "honked bagpipe alpine juicy faked afoot jostle claim cowl tunnel orphans negative pheasants feast jetting quote frown teeming cycling tribal womanly hills cottage daytime daytime";
+
+    extern "C" fn discard_signal(_: u32, _: *const u8, _: usize, _: *mut c_void) {}
+
+    #[test]
+    fn native_byte_transport_dispatches_wallet2_commands() {
+        let handle = hub_init(discard_signal, std::ptr::null_mut());
+        assert!(!handle.is_null());
+
+        let command = WireEnvelope::command(
+            7,
+            None,
+            WALLET2_PROTOCOL,
+            crate::wallet2_facade::OPEN_SEED,
+            crate::wallet2_facade::encode_open_seed(SEED, "stagenet", "").unwrap(),
+        )
+        .encode()
+        .unwrap();
+        let result = unsafe { hub_dispatch_envelope(handle, command.as_ptr(), command.len()) };
+        assert_eq!(result.status, 0);
+        let completion_bytes =
+            unsafe { std::slice::from_raw_parts(result.data_ptr, result.data_len).to_vec() };
+        unsafe { hub_free_bytes(result.data_ptr, result.data_len) };
+
+        let completion = WireEnvelope::decode(&completion_bytes).unwrap();
+        assert_eq!(completion.kind, FrameKind::Completion);
+        assert_eq!(completion.id, 7);
+        assert!(completion.wallet.is_some());
+
+        unsafe { hub_shutdown(handle) };
+    }
 }

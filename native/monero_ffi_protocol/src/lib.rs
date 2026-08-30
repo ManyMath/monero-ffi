@@ -375,6 +375,106 @@ impl Dispatcher {
     }
 }
 
+/// Protocol-neutral result returned by a mounted facade.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct HandlerResponse {
+    /// Wallet handle to attach to the completion. When omitted, the command's
+    /// wallet handle is preserved.
+    pub wallet: Option<u64>,
+    pub body: Vec<u8>,
+    pub extensions: BTreeMap<String, Vec<u8>>,
+}
+
+impl HandlerResponse {
+    pub fn body(body: Vec<u8>) -> Self {
+        Self {
+            body,
+            ..Self::default()
+        }
+    }
+}
+
+/// A versioned facade mounted behind the language-neutral wire transport.
+///
+/// Implementations own API-specific representation and state. They call into
+/// Rust domain APIs, while transports only move encoded envelopes.
+pub trait ProtocolHandler: Send {
+    fn protocol(&self) -> &'static str;
+    fn version(&self) -> Version;
+    fn handle(&mut self, command: &WireEnvelope) -> Result<HandlerResponse, String>;
+}
+
+struct MountedHandler {
+    version: Version,
+    handler: Box<dyn ProtocolHandler>,
+}
+
+/// Routes command envelopes to independently versioned protocol facades.
+#[derive(Default)]
+pub struct RuntimeDispatcher {
+    handlers: BTreeMap<String, MountedHandler>,
+}
+
+impl RuntimeDispatcher {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn mount<H>(&mut self, handler: H) -> Result<(), ProtocolError>
+    where
+        H: ProtocolHandler + 'static,
+    {
+        let protocol = handler.protocol();
+        validate_name("protocol", protocol)?;
+        if self.handlers.contains_key(protocol) {
+            return Err(ProtocolError::DuplicateProtocol(protocol.to_owned()));
+        }
+        self.handlers.insert(
+            protocol.to_owned(),
+            MountedHandler {
+                version: handler.version(),
+                handler: Box::new(handler),
+            },
+        );
+        Ok(())
+    }
+
+    pub fn dispatch(&mut self, bytes: &[u8]) -> Result<Vec<u8>, ProtocolError> {
+        self.dispatch_frame(WireEnvelope::decode(bytes)?)?.encode()
+    }
+
+    pub fn dispatch_frame(&mut self, command: WireEnvelope) -> Result<WireEnvelope, ProtocolError> {
+        command.validate()?;
+        if command.kind != FrameKind::Command {
+            return Err(ProtocolError::UnexpectedFrameKind(command.kind));
+        }
+
+        let Some(mounted) = self.handlers.get_mut(&command.protocol) else {
+            return Err(ProtocolError::UnsupportedProtocol(command.protocol.clone()));
+        };
+        if mounted.version.major != command.protocol_version.major
+            || mounted.version.minor < command.protocol_version.minor
+        {
+            return Err(ProtocolError::IncompatibleVersion {
+                received: command.protocol_version,
+                supported: mounted.version,
+            });
+        }
+
+        let response = mounted
+            .handler
+            .handle(&command)
+            .map_err(ProtocolError::HandlerFailed)?;
+        let mut completion = command;
+        completion.kind = FrameKind::Completion;
+        completion.wallet = response.wallet.or(completion.wallet);
+        completion.body = response.body;
+        completion.extensions = response.extensions;
+        completion.validate()?;
+        Ok(completion)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProtocolError {
     Encode(String),
@@ -397,6 +497,9 @@ pub enum ProtocolError {
     PayloadTooLarge(usize),
     TooManyExtensions(usize),
     UnsupportedProtocol(String),
+    DuplicateProtocol(String),
+    UnexpectedFrameKind(FrameKind),
+    HandlerFailed(String),
 }
 
 impl fmt::Display for ProtocolError {
@@ -580,5 +683,46 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    struct Echo;
+
+    impl ProtocolHandler for Echo {
+        fn protocol(&self) -> &'static str {
+            WALLET2_PROTOCOL
+        }
+
+        fn version(&self) -> Version {
+            Version::new(1, 0)
+        }
+
+        fn handle(&mut self, command: &WireEnvelope) -> Result<HandlerResponse, String> {
+            Ok(HandlerResponse::body(command.body.clone()))
+        }
+    }
+
+    #[test]
+    fn runtime_dispatcher_invokes_a_mounted_facade() {
+        let mut dispatcher = RuntimeDispatcher::new();
+        dispatcher.mount(Echo).unwrap();
+        let command = WireEnvelope::command(9, Some(4), WALLET2_PROTOCOL, "wallet.echo", vec![7]);
+
+        let completion = dispatcher.dispatch_frame(command).unwrap();
+        assert_eq!(completion.kind, FrameKind::Completion);
+        assert_eq!(completion.id, 9);
+        assert_eq!(completion.wallet, Some(4));
+        assert_eq!(completion.body, vec![7]);
+    }
+
+    #[test]
+    fn runtime_dispatcher_rejects_duplicate_facades() {
+        let mut dispatcher = RuntimeDispatcher::new();
+        dispatcher.mount(Echo).unwrap();
+        assert_eq!(
+            dispatcher.mount(Echo),
+            Err(ProtocolError::DuplicateProtocol(
+                WALLET2_PROTOCOL.to_owned()
+            ))
+        );
     }
 }
